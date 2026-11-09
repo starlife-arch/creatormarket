@@ -11,6 +11,8 @@ exports.handler = async event => {
     const db = context.admin.firestore();
     const handle = await db.collection("marketCreatorHandles").doc(username).get();
     if (!handle.exists) return json(404, { error: "Creator not found." });
+    const blocked = await db.collection("marketBlocks").doc(context.uid).collection("blocked").doc(handle.data().uid).get();
+    if (blocked.exists) return json(404, { error: "Creator not found." });
     const creatorSnap = await db.collection("marketCreators").doc(handle.data().uid).get();
     if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "Creator not found." });
     const d = creatorSnap.data();
