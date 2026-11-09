@@ -14,6 +14,8 @@ exports.handler = async event => {
     const listing = await listingRef.get();
     if (!listing.exists || listing.data().status !== "published" || !listing.data().mediaObjectPath) return json(404, { error: "This content is unavailable." });
     const data = listing.data();
+    const creatorProfile = await db.collection("marketCreators").doc(data.creatorUid).get();
+    if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "This content is unavailable." });
     const isOwner = data.creatorUid === context.uid;
     let entitlement = null;
     if (!isOwner) {
