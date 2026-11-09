@@ -17,7 +17,7 @@ exports.handler = async event => {
     if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "Creator not found." });
     const d = creatorSnap.data();
     return json(200, { creator: {
-      username: d.username, displayName: d.displayName || d.username,
+      uid: handle.data().uid, username: d.username, displayName: d.displayName || d.username,
       bio: d.bio || "", category: d.category || "Creator",
       avatarUrl: d.avatarPreviewUrl || "", verified: d.verified === true
     }, listings: [] });
