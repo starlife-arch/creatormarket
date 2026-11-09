@@ -46,9 +46,10 @@ exports.handler = async event => {
       const balance = Math.floor(Number(buyer.walletBalance || 0));
       if (balance < offer.priceTokens) throw new Error("INSUFFICIENT_TOKENS");
       const creatorRef = db.collection("users").doc(listing.creatorUid);
+      const creatorProfileRef = db.collection("marketCreators").doc(listing.creatorUid);
       const creatorBalanceRef = db.collection("marketCreatorBalances").doc(listing.creatorUid);
-      const [creatorSnap, creatorBalanceSnap] = await Promise.all([tx.get(creatorRef), tx.get(creatorBalanceRef)]);
-      if (!creatorSnap.exists || creatorSnap.data().banned || creatorSnap.data().suspended || creatorSnap.data().accountSuspended) throw new Error("CREATOR_UNAVAILABLE");
+      const [creatorSnap, creatorProfileSnap, creatorBalanceSnap] = await Promise.all([tx.get(creatorRef), tx.get(creatorProfileRef), tx.get(creatorBalanceRef)]);
+      if (!creatorSnap.exists || creatorSnap.data().banned || creatorSnap.data().suspended || creatorSnap.data().accountSuspended || creatorSnap.data().marketCreatorIdentityVerified !== true || !creatorProfileSnap.exists || creatorProfileSnap.data().status !== "approved") throw new Error("CREATOR_UNAVAILABLE");
       const gross = offer.priceTokens;
       const platformFee = Math.round(gross * 0.15);
       const creatorNet = gross - platformFee;
@@ -95,4 +96,5 @@ exports.handler = async event => {
     return json(500, { error: "Unable to complete this purchase." });
   }
 };
-\nmodule.exports.expiryFor = expiryFor;\n
+
+module.exports.expiryFor = expiryFor;
