@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17151f">
+  <meta name="description" content="Creator Market — discover, rent and support independent creators on DateVault.">
+  <title>Creator Market | DateVault</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{color-scheme:dark;--bg:#111018;--panel:#1b1924;--muted:#aaa6b7;--text:#f7f4fb;--accent:#c6a6ff;--line:#302c3a}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% 0%,#302342 0,transparent 36%),var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;min-height:100vh}
+    a{color:inherit;text-decoration:none}.wrap{width:min(1120px,calc(100% - 40px));margin:auto}
+    header{height:78px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff12}
+    .brand{font:800 19px Manrope,sans-serif;letter-spacing:-.6px}.brand span{color:var(--accent)}nav{display:flex;gap:26px;color:#d0cbd8;font-size:14px}
+    .back{border:1px solid #ffffff25;border-radius:30px;padding:10px 16px;font-size:13px}
+    .hero{padding:100px 0 82px;max-width:760px}.eyebrow{color:var(--accent);font-weight:700;font-size:12px;letter-spacing:2px;text-transform:uppercase}
+    h1{font:800 clamp(42px,7vw,76px)/1.05 Manrope,sans-serif;letter-spacing:-3px;margin:20px 0}
+    .hero p{font-size:18px;line-height:1.7;color:var(--muted);max-width:610px}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}.button{display:inline-flex;padding:13px 19px;border-radius:30px;font-weight:700;font-size:14px;background:var(--accent);color:#20172d}.button.secondary{background:#ffffff0c;color:var(--text);border:1px solid #ffffff25}
+    .section-head{display:flex;align-items:end;justify-content:space-between;margin:10px 0 22px}.section-head h2{font:700 23px Manrope;margin:0}.section-head p{color:var(--muted);font-size:13px;margin:0}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:90px}.tile{background:linear-gradient(145deg,#262131,#191721);border:1px solid var(--line);border-radius:18px;padding:25px;min-height:175px}
+    .tile .symbol{font-size:25px}.tile h3{font:700 17px Manrope;margin:18px 0 8px}.tile p{color:var(--muted);font-size:13px;line-height:1.6;margin:0}
+    .notice{border:1px solid #b995ed55;background:#b995ed12;border-radius:16px;padding:20px 22px;color:#e8def7;font-size:14px;line-height:1.6;margin-bottom:65px}
+    footer{border-top:1px solid #ffffff12;padding:25px 0;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap}
+    @media(max-width:700px){nav{display:none}.hero{padding:75px 0 60px}.grid{grid-template-columns:1fr}.section-head{display:block}.section-head p{margin-top:8px}h1{letter-spacing:-2px}}
+  </style>
+</head>
+<body>
+  <header class="wrap">
+    <a class="brand" href="/" aria-label="Creator Market home">DATEVAULT <span>MARKET</span></a>
+    <nav aria-label="Main navigation"><a href="#discover">Discover</a><a href="#creators">For creators</a></nav>
+    <a class="back" href="https://elysiandate.site">Back to DateVault ↗</a>
+  </header>
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">A new space for creativity</div>
+      <h1>Discover content.<br><span style="color:var(--accent)">Support creators.</span></h1>
+      <p>A dedicated marketplace for discovering and accessing creator content. Explore what’s coming, while we prepare the secure tools for creators and members.</p>
+      <div class="actions"><a class="button" href="#discover">Explore the market</a><a class="button secondary" href="#creators">I'm a creator</a></div>
+    </section>
+    <section id="discover">
+      <div class="section-head"><h2>Made for how you want to access content</h2><p>Marketplace features are being built.</p></div>
+      <div class="grid">
+        <article class="tile"><div class="symbol">⌕</div><h3>Find creators</h3><p>Discover creator pages and search by unique username.</p></article>
+        <article class="tile"><div class="symbol">◷</div><h3>Flexible access</h3><p>Access options are planned to include timed viewing, rentals and purchases.</p></article>
+        <article class="tile"><div class="symbol">◇</div><h3>Creator control</h3><p>Creators will manage their content, access settings and pricing.</p></article>
+      </div>
+    </section>
+    <section class="notice" id="creators"><strong>Creator Market is under construction.</strong><br>Accounts, payments, age checks, content protection and creator payouts are not active on this starter page. Do not submit payment details or upload private content here. Sign-in and marketplace access will be connected after the secure backend is implemented.</section>
+  </main>
+  <footer class="wrap"><span>© <span id="year"></span> DateVault Creator Market</span><span>Independent marketplace · Separate from dating membership access</span></footer>
+  <script>document.getElementById("year").textContent = new Date().getFullYear();</script>
+</body>
+</html>
