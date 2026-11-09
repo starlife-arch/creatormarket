@@ -31,6 +31,11 @@ exports.handler = async event => {
       await appRef.update({ status: "rejected", reviewNote: note, reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: auth.uid, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return json(200, { ok: true, status: "rejected" });
     }
+    const applicantSnap = await db.collection("users").doc(uid).get();
+    const applicant = applicantSnap.exists ? applicantSnap.data() || {} : {};
+    if (applicant.marketAgeVerified !== true || applicant.marketCreatorIdentityVerified !== true) {
+      return json(403, { error: "Creator approval requires separately verified 18+ age and creator identity. Complete those checks before approving." });
+    }
     const username = String(app.username || "").toLowerCase();
     if (!validUsername(username)) return json(409, { error: "The requested username is invalid. Ask the creator to apply again." });
     const handleRef = db.collection("marketCreatorHandles").doc(username);
