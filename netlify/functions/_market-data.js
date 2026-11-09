@@ -51,4 +51,4 @@ function isAdmin(profile = {}) {
   return profile.role === "admin" || profile.isAdmin === true;
 }
 
-module.exports = { getMarketUser, loadEligibleUser, cleanText, validUsername, isAdmin, isMarketAccountEligible };
+module.exports = { getMarketUser, loadMarketUser, loadEligibleUser, cleanText, validUsername, isAdmin, isMarketAccountEligible };
