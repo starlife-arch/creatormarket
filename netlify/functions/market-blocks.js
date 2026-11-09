@@ -1,5 +1,5 @@
 const { json, parseBody } = require("./_market-auth");
-const { loadEligibleUser, cleanText } = require("./_market-data");
+const { loadMarketUser, cleanText } = require("./_market-data");
 
 exports.handler = async event => {
   if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed" }, { Allow: "GET, POST" });

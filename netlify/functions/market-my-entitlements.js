@@ -1,5 +1,5 @@
 const { json } = require("./_market-auth");
-const { loadEligibleUser } = require("./_market-data");
+const { loadMarketUser } = require("./_market-data");
 
 exports.handler = async event => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" }, { Allow: "GET" });
