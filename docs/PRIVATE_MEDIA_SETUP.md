@@ -25,7 +25,7 @@ The browser uploads directly to the signed Google Cloud Storage URL. Configure t
   {
     "origin": ["https://market.elysiandate.site"],
     "method": ["PUT", "GET", "HEAD"],
-    "responseHeader": ["Content-Type", "ETag"],
+    "responseHeader": ["Content-Type", "x-goog-if-generation-match", "ETag"],
     "maxAgeSeconds": 1800
   }
 ]
