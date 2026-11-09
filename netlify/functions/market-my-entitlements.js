@@ -11,7 +11,7 @@ exports.handler = async event => {
     return json(200, { entitlements: snap.docs.map(doc => {
       const d = doc.data();
       const expires = d.expiresAt?.toDate ? d.expiresAt.toDate() : null;
-      return { id: doc.id, listingId: d.listingId, creatorUid: d.creatorUid, offerType: d.offerType, status: d.status, expiresAt: expires?.toISOString() || null, active: d.status === "active" && (!expires || expires.getTime() > Date.now()) };
+      return { id: doc.id, listingId: d.listingId, creatorUid: d.creatorUid, creatorUsername: d.creatorUsername || "", listingTitle: d.listingTitle || "Creator content", offerType: d.offerType, status: d.status, expiresAt: expires?.toISOString() || null, active: d.status === "active" && (!expires || expires.getTime() > Date.now()) };
     })});
   } catch (error) {
     console.error("Market entitlement history failed:", error.message);
