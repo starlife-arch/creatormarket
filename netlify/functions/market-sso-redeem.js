@@ -2,6 +2,7 @@ const crypto = require("crypto");
 const {
   getAdmin, originAllowed, json, parseBody, signSession, sessionCookie
 } = require("./_market-auth");
+const { isMarketAccountEligible } = require("./_market-data");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { "Cache-Control": "no-store" }, body: "" };
@@ -35,7 +36,7 @@ exports.handler = async (event) => {
     });
 
     const userSnap = await db.collection("users").doc(uid).get();
-    if (!userSnap.exists || userSnap.data()?.banned === true || userSnap.data()?.suspended === true || userSnap.data()?.accountSuspended === true || userSnap.data()?.status === "rejected" || userSnap.data()?.status === "suspended") {
+    if (!userSnap.exists || !isMarketAccountEligible(userSnap.data() || {})) {
       return json(403, { error: "This account cannot access Creator Market" });
     }
 
