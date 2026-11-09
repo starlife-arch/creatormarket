@@ -35,7 +35,7 @@ exports.handler = async (event) => {
     });
 
     const userSnap = await db.collection("users").doc(uid).get();
-    if (!userSnap.exists || userSnap.data()?.banned === true || userSnap.data()?.status === "rejected") {
+    if (!userSnap.exists || userSnap.data()?.banned === true || userSnap.data()?.suspended === true || userSnap.data()?.accountSuspended === true || userSnap.data()?.status === "rejected") {
       return json(403, { error: "This account cannot access Creator Market" });
     }
 
