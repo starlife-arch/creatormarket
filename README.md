@@ -43,8 +43,8 @@ The Market session is a signed 12-hour cookie. `GET /api/market-session` checks 
 
 ## Security notes
 
-- This branch does not add a login UI or the DateVault code issuer yet.
-- No Market session is usable until the matching issuer writes the specified Firestore document.
+- The Market callback and signed-in placeholder are present. The DateVault issuer is being developed in a separate draft PR in `starlife-arch/elysianprivatebackup`.
+- No Market session is usable until the matching DateVault issuer is merged/deployed to its preview and writes the specified Firestore document.
 - The Firebase service account is server-side only. Never expose it in client environment variables.
 - The Market session secret is separate and must be kept private.
 - Direct visits, account switching, logout, bans, replay, expiry, and preview-origin behavior must be tested before enabling navigation from DateVault.
