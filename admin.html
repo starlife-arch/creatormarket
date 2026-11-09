@@ -4,7 +4,34 @@ function esc(v){return String(v||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 async function loadApplications(){try{const r=await fetch("/api/market-admin-applications",{cache:"no-store"}),d=await r.json();if(!r.ok)throw Error(d.error);if(!d.applications.length){apps.textContent="No pending applications.";return;}apps.innerHTML=d.applications.map(a=>'<article class="app"><h3>'+esc(a.displayName)+' · @'+esc(a.username)+'</h3><p class="muted">'+esc(a.category)+'<br>'+esc(a.bio)+'<br>Applicant UID: '+esc(a.uid)+'</p><input class="note" id="appnote-'+esc(a.uid)+'" maxlength="500" placeholder="Optional review note"><div><button class="approve" data-kind="application" data-id="'+esc(a.uid)+'" data-action="approve">Approve creator</button><button class="reject" data-kind="application" data-id="'+esc(a.uid)+'" data-action="reject">Reject</button></div></article>').join("");}catch(e){apps.textContent=e.message||"Could not load applications.";}}
 async function loadWithdrawals(){try{const r=await fetch("/api/market-admin-withdrawals",{cache:"no-store"}),d=await r.json();if(!r.ok)throw Error(d.error);if(!d.withdrawals.length){withdrawals.textContent="No pending withdrawals.";return;}withdrawals.innerHTML=d.withdrawals.map(w=>'<article class="app"><h3>'+Number(w.amountTokens)+' creator tokens</h3><p class="muted">Creator UID: '+esc(w.creatorUid)+'<br>Method: '+esc(w.method)+'<br>Details: '+esc(w.payoutDetails)+'</p><input class="note" id="withdrawnote-'+esc(w.id)+'" maxlength="500" placeholder="Payout reference or rejection reason"><div><button class="approve" data-kind="withdrawal" data-id="'+esc(w.id)+'" data-action="paid">Mark paid</button><button class="reject" data-kind="withdrawal" data-id="'+esc(w.id)+'" data-action="reject">Reject and release tokens</button></div></article>').join("");}catch(e){withdrawals.textContent=e.message||"Could not load withdrawals.";}}
 async function loadReports(){try{const r=await fetch("/api/market-admin-reports",{cache:"no-store"}),d=await r.json();if(!r.ok)throw Error(d.error);if(!d.reports.length){reports.textContent="No pending reports.";return;}reports.innerHTML=d.reports.map(x=>'<article class="app"><h3>'+esc(x.targetType)+' report</h3><p class="muted">Target: '+esc(x.targetId)+'<br>Reported account: '+esc(x.targetUid)+'<br>Reason: '+esc(x.reason)+'</p><input class="note" id="reportnote-'+esc(x.id)+'" maxlength="500" placeholder="Moderation note"><div><button class="reject" data-kind="report" data-id="'+esc(x.id)+'" data-action="hide_listing">Hide listing</button><button class="reject" data-kind="report" data-id="'+esc(x.id)+'" data-action="suspend_creator">Suspend creator</button><button data-kind="report" data-id="'+esc(x.id)+'" data-action="resolve">Resolve</button><button data-kind="report" data-id="'+esc(x.id)+'" data-action="dismiss">Dismiss</button></div></article>').join("");}catch(e){reports.textContent=e.message||"Could not load reports.";}}
-async function act(button){const kind=button.dataset.kind,id=button.dataset.id,action=button.dataset.action;button.disabled=true;const note=document.getElementById((kind==="application"?"appnote-":kind==="withdrawal"?"withdrawnote-":"reportnote-")+id)?.value||"";let url,body;if(kind==="application"){url="/api/market-admin-applications";body={uid:id,decision:action,note};}else if(kind==="withdrawal"){url="/api/market-admin-withdrawals";body={withdrawalId:id,decision:action,note};}else{url="/api/market-admin-reports";body={reportId:id,action,note};}try{const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw Error(d.error);await document.getElementById("verifyForm").addEventListener("submit",async e=>{e.preventDefault();const status=document.getElementById("verifyStatus");if(!document.getElementById("verifyConfirm").checked){status.textContent="Confirm that you reviewed the evidence.";return;}const body={uid:document.getElementById("verifyUid").value.trim(),marketAgeVerified:document.getElementById("ageVerified").checked,marketCreatorIdentityVerified:document.getElementById("identityVerified").checked,reason:document.getElementById("verifyReason").value,confirmation:"I_HAVE_REVIEWED_EVIDENCE"};try{const r=await fetch("/api/market-admin-verification",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json();if(!r.ok)throw Error(d.error);status.textContent="Verification flags updated and audit recorded. The user can now continue through the relevant Market checks.";}catch(err){status.textContent=err.message||"Could not update verification.";}});\nPromise.all([loadApplications(),loadWithdrawals(),loadReports()]);}catch(e){alert(e.message||"Action failed.");button.disabled=false;}}
+async function act(button){
+ const kind=button.dataset.kind,id=button.dataset.id,action=button.dataset.action;
+ button.disabled=true;
+ const note=document.getElementById((kind==="application"?"appnote-":kind==="withdrawal"?"withdrawnote-":"reportnote-")+id)?.value||"";
+ let url,body;
+ if(kind==="application"){url="/api/market-admin-applications";body={uid:id,decision:action,note};}
+ else if(kind==="withdrawal"){url="/api/market-admin-withdrawals";body={withdrawalId:id,decision:action,note};}
+ else{url="/api/market-admin-reports";body={reportId:id,action,note};}
+ try{
+  const r=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json();
+  if(!r.ok)throw Error(d.error);
+  await Promise.all([loadApplications(),loadWithdrawals(),loadReports()]);
+ }catch(e){alert(e.message||"Action failed.");button.disabled=false;}
+}
+document.getElementById("verifyForm").addEventListener("submit",async e=>{
+ e.preventDefault();
+ const status=document.getElementById("verifyStatus");
+ const confirm=document.getElementById("verifyConfirm");
+ if(!confirm.checked){status.textContent="Confirm that you reviewed the evidence.";return;}
+ const body={uid:document.getElementById("verifyUid").value.trim(),marketAgeVerified:document.getElementById("ageVerified").checked,marketCreatorIdentityVerified:document.getElementById("identityVerified").checked,reason:document.getElementById("verifyReason").value,confirmation:"I_HAVE_REVIEWED_EVIDENCE"};
+ try{
+  const r=await fetch("/api/market-admin-verification",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}),d=await r.json();
+  if(!r.ok)throw Error(d.error);
+  status.textContent="Verification flags updated and audit recorded.";
+ }catch(err){status.textContent=err.message||"Could not update verification.";}
+});
+document.body.addEventListener("click",e=>{const b=e.target.closest("button[data-kind]");if(b)act(b);});
+Promise.all([loadApplications(),loadWithdrawals(),loadReports()]);}catch(e){alert(e.message||"Action failed.");button.disabled=false;}}
 document.body.addEventListener("click",e=>{const b=e.target.closest("button[data-kind]");if(b)act(b);});
 Promise.all([loadApplications(),loadWithdrawals(),loadReports()]);
 </script></body></html>
