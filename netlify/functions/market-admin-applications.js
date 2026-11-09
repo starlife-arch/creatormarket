@@ -29,6 +29,7 @@ exports.handler = async event => {
     const app = appSnap.data();
     if (decision === "reject") {
       await appRef.update({ status: "rejected", reviewNote: note, reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: auth.uid, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      await db.collection("marketAdminAudit").add({ actorUid: auth.uid, action: "creator_application_rejected", targetUid: uid, reason: note, createdAt: admin.firestore.FieldValue.serverTimestamp() });
       return json(200, { ok: true, status: "rejected" });
     }
     const applicantSnap = await db.collection("users").doc(uid).get();
@@ -53,6 +54,7 @@ exports.handler = async event => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
       tx.update(appRef, { status: "approved", reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: auth.uid, reviewNote: note, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      tx.create(db.collection("marketAdminAudit").doc(), { actorUid: auth.uid, action: "creator_application_approved", targetUid: uid, targetId: username, reason: note, createdAt: admin.firestore.FieldValue.serverTimestamp() });
     });
     return json(200, { ok: true, status: "approved", username });
   } catch (error) {
