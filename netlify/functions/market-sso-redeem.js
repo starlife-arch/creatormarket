@@ -6,7 +6,8 @@ const {
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { "Cache-Control": "no-store" }, body: "" };
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" }, { Allow: "POST, OPTIONS" });
-  if (!originAllowed(event)) return json(403, { error: "Origin not allowed" });
+  const origin = event.headers?.origin || event.headers?.Origin;
+  if (origin !== (process.env.MARKET_ORIGIN || "https://market.elysiandate.site")) return json(403, { error: "Origin not allowed" });
 
   try {
     const { code } = parseBody(event);
