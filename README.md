@@ -13,7 +13,10 @@ Independent application for `https://market.elysiandate.site`. Keep it separate 
 - `FIREBASE_SERVICE_ACCOUNT`: Firebase Admin service account JSON for the shared DateVault Firebase project.
 - `MARKET_SESSION_SECRET`: unique random secret, minimum 32 characters.
 - `MARKET_ORIGIN`: exact Market origin, normally `https://market.elysiandate.site`.
-- `MARKET_STORAGE_BUCKET`: private Firebase Storage / Google Cloud Storage bucket name. The existing DateVault config currently names `date-ce760.firebasestorage.app`; verify that bucket exists and is private before setting this value.
+- `CLOUDINARY_URL`: dedicated Creator Market Cloudinary account URL (server-only).
+- `MARKET_CLOUDINARY_UPLOAD_PRESET`: name of the signed, authenticated-delivery upload preset.
+- `YOTI_AGE_API_KEY`: server-only Yoti Age Verification API key.
+- `YOTI_SDK_ID`: Yoti Age Verification SDK ID.
 
 Never put service credentials or session secrets in browser code.
 
@@ -24,7 +27,8 @@ Never put service credentials or session secrets in browser code.
 - Creator application form, one application per DateVault UID, server-side username validation and admin approval.
 - Unique case-insensitive username reservation on approval.
 - Creator listing drafts with hourly timed viewing, day/week/month rental, and permanent access offers.
-- Signed private media upload, upload metadata validation, and entitlement-checked 60-second viewing URLs; see `docs/PRIVATE_MEDIA_SETUP.md` for bucket/CORS configuration.
+- Signed Cloudinary private-media upload, upload metadata validation, and entitlement-checked 60-second viewing URLs.
+- Separate member-facing Yoti 18+ age-verification sessions and server-side result checks.
 - Idempotent token purchase service with server-calculated expiry, wallet debit, buyer entitlement, 15% platform / 85% creator ledger split.
 - Creator balance, earnings history and withdrawal requests (minimum 3,000 creator-earning tokens).
 - Admin review for creator applications and withdrawals.
@@ -54,10 +58,10 @@ Market APIs deliberately fail closed unless the shared user document has:
 - `marketAgeVerified: true` — trusted 18+ verification completed.
 - `marketCreatorIdentityVerified: true` — creator identity verification completed.
 
-These values must only be set by a trusted verification provider callback or authorized server-side verification workflow. Never let a browser client set either field. A self-entered birth date is not sufficient. A controlled manual admin verification screen is included in this branch; see `docs/MANUAL_VERIFICATION.md`. No external verification provider is connected.
+These values must only be set by a trusted verification provider result or authorized server-side admin review. Never let a browser client set either field. A self-entered birth date is not sufficient. Members can start and check a Yoti 18+ verification from Creator Studio; the backend stores the provider session reference and pass/fail result, not a copy of the identity document. Configure `YOTI_AGE_API_KEY` and `YOTI_SDK_ID` in the separate Market Netlify project's environment variables. The existing admin review screen remains available for controlled manual evidence review. Creator identity approval remains a separate admin-reviewed process.
 
-## Private media is the remaining release blocker
-Creator listings are currently saved as drafts. They cannot be published or purchased because no private media upload/streaming route is enabled yet. Do not expose public storage URLs or allow a listing to become purchasable without a private media object and entitlement-checked delivery. The next media phase needs a dedicated private object-storage bucket, signed upload, metadata validation, short-lived authenticated viewing, and owner-controlled downloads.
+## Private media
+Creator media uses a dedicated Cloudinary account with authenticated delivery. Upload authorization is signed by the Market backend; media access checks the Market session, 18+ verification, creator/listing state, purchase or rental entitlement, expiry, and download permission before issuing a short-lived private URL. Configure the dedicated signed upload preset before enabling creator uploads.
 
 ## Payment and withdrawal boundaries
 Buyer purchases in this phase debit the existing DateVault `users/{uid}.walletBalance` inside a Firestore transaction. Creator earnings are recorded separately and never added to the buyer wallet. Withdrawals reserve creator earnings and require admin review; the admin must mark a withdrawal paid only after sending the payout. No automated payout provider is connected.
