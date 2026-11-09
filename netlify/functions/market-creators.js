@@ -12,7 +12,9 @@ exports.handler = async event => {
     if (q) query = db.collection("marketCreators").where("status", "==", "approved")
       .orderBy("usernameLower").startAt(q).endAt(q + "\uf8ff").limit(30);
     const snap = await query.get();
-    const creators = snap.docs.map(doc => {
+    const blockedSnap = await db.collection("marketBlocks").doc(context.uid).collection("blocked").get();
+    const blocked = new Set(blockedSnap.docs.map(doc => doc.id));
+    const creators = snap.docs.filter(doc => !blocked.has(doc.id)).map(doc => {
       const d = doc.data();
       return {
         uid: doc.id,
