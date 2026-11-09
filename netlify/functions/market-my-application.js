@@ -4,7 +4,7 @@ const { loadMarketUser } = require("./_market-data");
 exports.handler = async event => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" }, { Allow: "GET" });
   try {
-    const context = await loadEligibleUser(event);
+    const context = await loadMarketUser(event);
     if (context.error) return context.error;
     const snap = await context.admin.firestore().collection("marketCreatorApplications").doc(context.uid).get();
     if (!snap.exists) return json(200, { application: null, ageVerified: context.profile.marketAgeVerified === true });
