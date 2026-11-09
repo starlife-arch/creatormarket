@@ -54,7 +54,7 @@ Market APIs deliberately fail closed unless the shared user document has:
 - `marketAgeVerified: true` — trusted 18+ verification completed.
 - `marketCreatorIdentityVerified: true` — creator identity verification completed.
 
-These values must only be set by a trusted verification provider callback or authorized server-side verification workflow. Never let a browser client set either field. A self-entered birth date is not sufficient. The verification provider/workflow is not connected in this phase.
+These values must only be set by a trusted verification provider callback or authorized server-side verification workflow. Never let a browser client set either field. A self-entered birth date is not sufficient. A controlled manual admin verification screen is included in this branch; see `docs/MANUAL_VERIFICATION.md`. No external verification provider is connected.
 
 ## Private media is the remaining release blocker
 Creator listings are currently saved as drafts. They cannot be published or purchased because no private media upload/streaming route is enabled yet. Do not expose public storage URLs or allow a listing to become purchasable without a private media object and entitlement-checked delivery. The next media phase needs a dedicated private object-storage bucket, signed upload, metadata validation, short-lived authenticated viewing, and owner-controlled downloads.
