@@ -16,8 +16,7 @@ async function loadEligibleUser(event) {
   const snap = await admin.firestore().collection("users").doc(auth.uid).get();
   if (!snap.exists) return { error: json(403, { error: "Your DateVault account could not be verified." }) };
   const profile = snap.data() || {};
-  if (profile.banned === true || profile.suspended === true || profile.accountSuspended === true ||
-      ["rejected", "suspended"].includes(profile.status)) {
+  if (!isMarketAccountEligible(profile)) {
     return { error: json(403, { error: "This account cannot access Creator Market." }) };
   }
   if (profile.marketAgeVerified !== true) {
@@ -34,8 +33,16 @@ function validUsername(value) {
   return /^[a-z0-9](?:[a-z0-9_]{1,28}[a-z0-9])?$/.test(value);
 }
 
+function isMarketAccountEligible(profile = {}) {
+  if (profile.banned === true || profile.suspended === true || profile.accountSuspended === true) return false;
+  if (["rejected", "suspended", "pending_admin_review"].includes(profile.status)) return false;
+  if (profile.role === "admin") return true;
+  return profile.adminApproved === true ||
+    ["active_member", "approved_pending_invite", "approved_pending_payment"].includes(profile.status);
+}
+
 function isAdmin(profile = {}) {
   return profile.role === "admin" || profile.isAdmin === true;
 }
 
-module.exports = { getMarketUser, loadEligibleUser, cleanText, validUsername, isAdmin };
+module.exports = { getMarketUser, loadEligibleUser, cleanText, validUsername, isAdmin, isMarketAccountEligible };
