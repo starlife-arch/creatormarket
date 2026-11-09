@@ -1,4 +1,4 @@
-const { json, parseBody } = require("./_market-auth");
+const { json, parseBody, getAdmin } = require("./_market-auth");
 const { getMarketUser, cleanText, validUsername, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -6,7 +6,7 @@ exports.handler = async event => {
   try {
     const auth = getMarketUser(event);
     if (auth.error) return auth.error;
-    const admin = require("firebase-admin");
+    const admin = getAdmin();
     const db = admin.firestore();
     const adminSnap = await db.collection("users").doc(auth.uid).get();
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
@@ -27,9 +27,8 @@ exports.handler = async event => {
     const appSnap = await appRef.get();
     if (!appSnap.exists || appSnap.data().status !== "pending") return json(409, { error: "This application is no longer pending." });
     const app = appSnap.data();
-    const actor = auth.uid;
     if (decision === "reject") {
-      await appRef.update({ status: "rejected", reviewNote: note, reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: actor, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      await appRef.update({ status: "rejected", reviewNote: note, reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: auth.uid, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
       return json(200, { ok: true, status: "rejected" });
     }
     const username = String(app.username || "").toLowerCase();
@@ -48,7 +47,7 @@ exports.handler = async event => {
         verified: false, createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
-      tx.update(appRef, { status: "approved", reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: actor, reviewNote: note, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
+      tx.update(appRef, { status: "approved", reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: auth.uid, reviewNote: note, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     });
     return json(200, { ok: true, status: "approved", username });
   } catch (error) {
