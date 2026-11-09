@@ -11,7 +11,7 @@ function expiryFor(offer, now) {
   }
   if (offer.unit === "day") date.setUTCDate(date.getUTCDate() + offer.value);
   else if (offer.unit === "week") date.setUTCDate(date.getUTCDate() + offer.value * 7);
-  else if (offer.unit === "month") date.setUTCMonth(date.getUTCMonth() + offer.value);
+  else if (offer.unit === "month") { const day = date.getUTCDate(); date.setUTCDate(1); date.setUTCMonth(date.getUTCMonth() + offer.value); const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate(); date.setUTCDate(Math.min(day, lastDay)); }
   else throw new Error("Unsupported rental duration.");
   return date;
 }
@@ -35,7 +35,7 @@ exports.handler = async event => {
     await db.runTransaction(async tx => {
       const [prior, listingSnap, buyerSnap] = await Promise.all([tx.get(purchaseRef), tx.get(listingRef), tx.get(buyerRef)]);
       if (prior.exists) { response = { ok: true, alreadyProcessed: true, purchaseId, entitlementId: prior.data().entitlementId }; return; }
-      if (!listingSnap.exists || listingSnap.data().status !== "published") throw new Error("LISTING_UNAVAILABLE");
+      if (!listingSnap.exists || listingSnap.data().status !== "published" || !listingSnap.data().mediaObjectPath) throw new Error("LISTING_UNAVAILABLE");
       if (!buyerSnap.exists) throw new Error("ACCOUNT_UNAVAILABLE");
       const listing = listingSnap.data();
       if (listing.creatorUid === context.uid) throw new Error("OWN_CONTENT");
@@ -95,3 +95,4 @@ exports.handler = async event => {
     return json(500, { error: "Unable to complete this purchase." });
   }
 };
+\nmodule.exports.expiryFor = expiryFor;\n
