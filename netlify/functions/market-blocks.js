@@ -9,8 +9,13 @@ exports.handler = async event => {
     const db = context.admin.firestore();
     const collection = db.collection("marketBlocks").doc(context.uid).collection("blocked");
     if (event.httpMethod === "GET") {
-      const snap = await collection.get();
-      return json(200, { blockedUids: snap.docs.map(d => d.id) });
+      const snap = await collection.limit(100).get();
+      const blockedCreators = await Promise.all(snap.docs.map(async doc => {
+        const creator = await db.collection("marketCreators").doc(doc.id).get();
+        const data = creator.data() || {};
+        return { uid: doc.id, username: data.username || "", displayName: data.displayName || data.username || "Creator" };
+      }));
+      return json(200, { blockedUids: snap.docs.map(d => d.id), blockedCreators });
     }
     const body = parseBody(event);
     const targetUid = cleanText(body.targetUid, 128);
