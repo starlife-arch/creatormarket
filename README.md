@@ -9,7 +9,7 @@ The `main` branch is a static landing page. The `feat/secure-market-sso-foundati
 ## Netlify configuration
 
 - Build command: leave blank
-- Publish directory: `. ` (a single dot: `.`)
+- Publish directory: `.` (a single dot)
 - Functions directory: `netlify/functions`
 - Node.js: 20
 
