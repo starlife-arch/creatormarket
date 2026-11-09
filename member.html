@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#111018">
+  <title>Your Market account | DateVault Market</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:#111018;color:#f7f4fb;font:16px system-ui,sans-serif}
+    header,main{width:min(920px,calc(100% - 36px));margin:auto}header{height:76px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #ffffff18}
+    a{color:#c6a6ff;text-decoration:none}button{border:1px solid #ffffff30;background:#252131;color:#fff;border-radius:24px;padding:10px 16px;cursor:pointer}
+    main{padding:70px 0}.panel{background:#1b1924;border:1px solid #393244;border-radius:20px;padding:28px;max-width:640px}p{color:#b8b1c5;line-height:1.7}
+  </style>
+</head>
+<body>
+  <header><a href="/">DATEVAULT MARKET</a><button id="logout" type="button">Sign out</button></header>
+  <main>
+    <section class="panel">
+      <h1>You're signed in</h1>
+      <p id="status">Checking your secure Market session…</p>
+      <p>This is the private account placeholder. Creator discovery, content access, purchases and creator tools are not active yet.</p>
+      <a href="/">Back to the market homepage</a>
+    </section>
+  </main>
+  <script>
+    (async () => {
+      const status = document.getElementById("status");
+      try {
+        const response = await fetch("/api/market-session", { credentials: "same-origin", cache: "no-store" });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.authenticated) {
+          window.location.replace("/");
+          return;
+        }
+        status.textContent = "Your DateVault account is connected. Your Market session is active.";
+      } catch (_) {
+        status.textContent = "We could not verify your session. Please try signing in again.";
+      }
+    })();
+    document.getElementById("logout").addEventListener("click", async () => {
+      await fetch("/api/market-logout", { method: "POST", credentials: "same-origin" }).catch(() => null);
+      window.location.replace("/");
+    });
+  </script>
+</body>
+</html>
