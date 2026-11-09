@@ -90,11 +90,11 @@ exports.handler = async event => {
       return json(200, { verificationUrl, status: created.status || "PENDING", expiresAt: expiresAt.toISOString() });
     }
 
-    const sessionId = String(event.queryStringParameters?.sessionId || "");
-    if (!UUID.test(sessionId)) return json(400, { error: "A valid verification session is required." });
-    const snap = await db.collection("marketAgeVerificationSessions").doc(sessionId).get();
     const active = await activeRef.get();
     const saved = active.exists ? active.data() || {} : {};
+    const sessionId = String(event.queryStringParameters?.sessionId || saved.sessionId || "");
+    if (!UUID.test(sessionId)) return json(200, { verified: false, status: "not_started", message: "You have not started age verification yet." });
+    const snap = await db.collection("marketAgeVerificationSessions").doc(sessionId).get();
     if (!snap.exists && saved.sessionId !== sessionId) return json(404, { error: "Verification session not found." });
     const session = snap.exists ? snap.data() : saved;
     if (session.uid !== context.uid || session.sessionId !== sessionId) {
