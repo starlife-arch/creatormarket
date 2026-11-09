@@ -42,7 +42,7 @@ exports.handler = async event => {
       expiresAt: context.admin.firestore.Timestamp.fromMillis(expiresAt),
       createdAt: context.admin.firestore.FieldValue.serverTimestamp()
     });
-    return json(200, { ok: true, uploadId, uploadUrl, objectPath, contentType, expiresInSeconds: 300 });
+    return json(200, { ok: true, uploadId, uploadUrl, objectPath, contentType, uploadHeaders: { "Content-Type": contentType, "x-goog-if-generation-match": "0" }, expiresInSeconds: 300 });
   } catch (error) {
     console.error("Market signed upload creation failed:", error.message);
     return json(500, { error: "Unable to prepare a private media upload." });
