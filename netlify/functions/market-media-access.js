@@ -1,4 +1,4 @@
-const { getStorage } = require("firebase-admin/storage");
+const cloudinary = require("cloudinary").v2;
 const { json } = require("./_market-auth");
 const { loadEligibleUser, cleanText } = require("./_market-data");
 
@@ -12,10 +12,15 @@ exports.handler = async event => {
     const db = context.admin.firestore();
     const listingRef = db.collection("marketListings").doc(listingId);
     const listing = await listingRef.get();
-    if (!listing.exists || listing.data().status !== "published" || !listing.data().mediaObjectPath) return json(404, { error: "This content is unavailable." });
+    if (!listing.exists || listing.data().status !== "published" || !listing.data().mediaPublicId) {
+      return json(404, { error: "This content is unavailable." });
+    }
     const data = listing.data();
     const creatorProfile = await db.collection("marketCreators").doc(data.creatorUid).get();
-    if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "This content is unavailable." });
+    if (!creatorProfile.exists || creatorProfile.data().status !== "approved") {
+      return json(404, { error: "This content is unavailable." });
+    }
+
     const isOwner = data.creatorUid === context.uid;
     let entitlement = null;
     if (!isOwner) {
@@ -29,18 +34,29 @@ exports.handler = async event => {
       });
       if (!entitlement) return json(403, { error: "Purchase an access offer to view this content." });
     }
-    const bucketName = process.env.MARKET_STORAGE_BUCKET;
-    if (!bucketName) return json(503, { error: "Private Market storage is not configured." });
+
     const downloadAllowed = isOwner ? false : data.downloadAllowed === true && entitlement?.downloadAllowed === true;
-    const [url] = await getStorage(context.admin.app()).bucket(bucketName).file(data.mediaObjectPath).getSignedUrl({
-      version: "v4", action: "read", expires: Date.now() + 60 * 1000,
-      responseType: data.mediaContentType || "application/octet-stream",
-      responseDisposition: downloadAllowed ? "attachment" : "inline",
-      responseCacheControl: "private, no-store, max-age=0"
+    const expiresAt = Math.floor(Date.now() / 1000) + 60;
+    cloudinary.config({ secure: true });
+    const mediaUrl = cloudinary.utils.private_download_url(
+      data.mediaPublicId,
+      data.mediaFormat,
+      {
+        resource_type: data.mediaResourceType,
+        type: "authenticated",
+        expires_at: expiresAt,
+        attachment: downloadAllowed
+      }
+    );
+    return json(200, {
+      ok: true,
+      mediaUrl,
+      contentType: data.mediaContentType || "application/octet-stream",
+      downloadAllowed,
+      expiresInSeconds: 60
     });
-    return json(200, { ok: true, mediaUrl: url, contentType: data.mediaContentType || "application/octet-stream", downloadAllowed, expiresInSeconds: 60 });
   } catch (error) {
-    console.error("Market media access failed:", error.message);
+    console.error("Market Cloudinary media access failed:", error.message);
     return json(500, { error: "Unable to authorize this media request." });
   }
 };
