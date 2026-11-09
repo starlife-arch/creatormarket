@@ -13,6 +13,7 @@ Independent application for `https://market.elysiandate.site`. Keep it separate 
 - `FIREBASE_SERVICE_ACCOUNT`: Firebase Admin service account JSON for the shared DateVault Firebase project.
 - `MARKET_SESSION_SECRET`: unique random secret, minimum 32 characters.
 - `MARKET_ORIGIN`: exact Market origin, normally `https://market.elysiandate.site`.
+- `MARKET_STORAGE_BUCKET`: private Firebase Storage / Google Cloud Storage bucket name. The existing DateVault config currently names `date-ce760.firebasestorage.app`; verify that bucket exists and is private before setting this value.
 
 Never put service credentials or session secrets in browser code.
 
@@ -23,6 +24,7 @@ Never put service credentials or session secrets in browser code.
 - Creator application form, one application per DateVault UID, server-side username validation and admin approval.
 - Unique case-insensitive username reservation on approval.
 - Creator listing drafts with hourly timed viewing, day/week/month rental, and permanent access offers.
+- Signed private media upload, upload metadata validation, and entitlement-checked 60-second viewing URLs; see `docs/PRIVATE_MEDIA_SETUP.md` for bucket/CORS configuration.
 - Idempotent token purchase service with server-calculated expiry, wallet debit, buyer entitlement, 15% platform / 85% creator ledger split.
 - Creator balance, earnings history and withdrawal requests (minimum 3,000 creator-earning tokens).
 - Admin review for creator applications and withdrawals.
