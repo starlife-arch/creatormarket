@@ -30,3 +30,24 @@ test("admin authorization accepts only explicit admin markers", () => {
   assert.equal(isAdmin({ isAdmin: true }), true);
   assert.equal(isAdmin({ role: "member" }), false);
 });
+
+const { expiryFor } = require("../netlify/functions/market-purchase");
+
+test("timed access expires using server milliseconds", () => {
+  const start = Date.UTC(2026, 0, 1, 12, 0, 0);
+  assert.equal(expiryFor({ type: "timed", unit: "hour", value: 6 }, start).getTime(), start + 6 * 60 * 60 * 1000);
+});
+
+test("week rentals use seven-day durations", () => {
+  const start = Date.UTC(2026, 0, 1);
+  assert.equal(expiryFor({ type: "rental", unit: "week", value: 2 }, start).getTime(), start + 14 * 24 * 60 * 60 * 1000);
+});
+
+test("month rentals clamp month-end dates instead of overflowing", () => {
+  const start = Date.UTC(2026, 0, 31, 10, 0, 0);
+  assert.equal(expiryFor({ type: "rental", unit: "month", value: 1 }, start).toISOString(), "2026-02-28T10:00:00.000Z");
+});
+
+test("permanent access has no expiry", () => {
+  assert.equal(expiryFor({ type: "permanent" }, Date.now()), null);
+});
