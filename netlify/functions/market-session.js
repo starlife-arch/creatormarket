@@ -12,7 +12,7 @@ exports.handler = async (event) => {
 
     const admin = getAdmin();
     const userSnap = await admin.firestore().collection("users").doc(session.sub).get();
-    if (!userSnap.exists || userSnap.data()?.banned === true || userSnap.data()?.status === "rejected") {
+    if (!userSnap.exists || userSnap.data()?.banned === true || userSnap.data()?.suspended === true || userSnap.data()?.accountSuspended === true || userSnap.data()?.status === "rejected") {
       return json(401, { authenticated: false });
     }
     return json(200, { authenticated: true, uid: session.sub });
