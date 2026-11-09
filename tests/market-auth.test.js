@@ -15,7 +15,9 @@ test("Market session verifies for its configured audience", () => {
 
 test("Market session rejects a modified signature", () => {
   const token = signSession("test-user-123");
-  const tampered = token.slice(0, -1) + (token.endsWith("a") ? "b" : "a");
+  const parts = token.split(".");
+  parts[2] = (parts[2][0] === "a" ? "b" : "a") + parts[2].slice(1);
+  const tampered = parts.join(".");
   assert.equal(verifySession(tampered), null);
 });
 
