@@ -1,0 +1,19 @@
+name: Creator Market tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - feat/marketplace-core-phase1
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --ignore-scripts
+      - run: find netlify/functions -name '*.js' -print0 | xargs -0 -n1 node --check
+      - run: npm test
