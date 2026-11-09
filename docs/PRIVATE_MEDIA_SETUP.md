@@ -1,37 +1,41 @@
-# Private creator media setup
+# Private Creator Market media (Cloudinary)
 
-## Required Netlify variable
-Add this server-side environment variable to the Creator Market Netlify project:
+Creator Market uses the existing DateVault Cloudinary product environment, but all Market assets are stored under the separate `creator-market/` public-ID prefix and uploaded with the `authenticated` delivery type. DateVault's existing media and upload flows are not changed.
 
-`MARKET_STORAGE_BUCKET=date-ce760.firebasestorage.app`
+## Required Creator Market Netlify environment variables
 
-This is the Storage bucket configured by the existing DateVault Firebase client configuration. The Market functions use the Firebase Admin service account to create short-lived signed upload and read URLs. Do not expose this value as a browser variable; it is server configuration.
+Set these as server-side variables in the separate Creator Market Netlify project (Production and the appropriate Deploy Preview context):
 
-If you later create a dedicated bucket for Market, replace the value with that bucket's exact name and ensure the service account has object create/read/delete permissions on it.
+- `CLOUDINARY_URL`: the Cloudinary API environment URL copied from the Cloudinary Console. It contains the cloud name, API key and API secret. Treat it as a secret; never add it to browser variables, source code, commits or chat.
+- `MARKET_CLOUDINARY_UPLOAD_PRESET`: the name of the dedicated **signed** Creator Market upload preset described below.
 
-## Bucket security
-- Keep the bucket private; do not grant `allUsers` or `allAuthenticatedUsers` object access.
-- Enable uniform bucket-level access and public access prevention.
-- Do not create public download tokens or store public Firebase download URLs in listing documents.
-- The application stores object names under `creator-market/{creatorUid}/{listingId}/{randomId}`.
-- Upload URLs are write-only, content-type-bound and valid for five minutes. Upload completion checks the actual object metadata and expected size before publishing.
-- Viewing URLs are read-only, entitlement-checked and valid for 60 seconds. The response is inline unless the creator enabled downloads for that listing and the entitlement was created with downloads enabled.
+Do not configure `MARKET_STORAGE_BUCKET`; Google Cloud Storage is not used by this implementation.
 
-## CORS
-The browser uploads directly to the signed Google Cloud Storage URL. Configure the bucket CORS to allow only the Market origin and the required PUT request headers. Example CORS policy:
+## Create a dedicated signed upload preset
 
-```json
-[
-  {
-    "origin": ["https://market.elysiandate.site"],
-    "method": ["PUT", "GET", "HEAD"],
-    "responseHeader": ["Content-Type", "ETag"],
-    "maxAgeSeconds": 1800
-  }
-]
-```
+In Cloudinary Console, open Settings → Upload → Upload presets and create a new preset for Creator Market. Configure it as follows (labels may vary by console version):
 
-Apply this policy to the exact bucket from the Netlify environment variable using the Google Cloud Storage bucket CORS configuration workflow. Do not make the bucket public.
+- Preset name: a unique name such as `creator_market_private`.
+- Signing mode: **Signed** (not unsigned).
+- Delivery type: **Authenticated**.
+- Allowed formats: `jpg,jpeg,png,webp,mp4,webm`.
+- Maximum file size: `524288000` bytes (500 MB). If the account's plan imposes a lower limit, use the lower limit and align the application limits.
+- Disallow overwriting existing assets.
+- Do not enable public delivery or create an unsigned upload preset for this workflow.
 
-## Delivery limitations
-A signed read URL is a temporary bearer URL: it is checked against the user's Market session and entitlement when issued, but it can be reused until it expires. Inline delivery and hiding download controls are deterrents, not absolute download prevention. Once content is displayed, screenshots, screen recording and external capture cannot be fully prevented. A strict per-range-request authorization proxy would be a separate delivery service and is not included in this Netlify function implementation.
+The server signs the preset name, unique public ID, timestamp and authenticated delivery type. Cloudinary returns the API key and signature to the browser; the API secret remains server-side. Image uploads are limited by the application to 30 MB and videos to 500 MB, and the server checks the actual uploaded resource metadata before publishing it.
+
+## Private media access
+
+- The server checks the Market session, creator approval, listing status, and buyer entitlement (including rental expiry) before generating a time-limited URL.
+- Assets use Cloudinary's `authenticated` delivery type, protecting both originals and derived versions from unsigned public delivery.
+- Access URLs are signed and expire after 60 seconds. The download option is only enabled when both the listing and the buyer's entitlement permit downloads.
+- Cloudinary's `private_download_url` delivers through its authenticated download API and is not CDN-cached; this is an intentional security/performance trade-off for paid content.
+- A URL already issued remains usable until its 60-second expiry. No browser-based system can fully prevent screenshots or screen recording after content is displayed.
+
+## Operational notes
+
+- Use the same Cloudinary product environment as DateVault, but do not change DateVault's existing upload presets or media configuration.
+- The Creator Market folder prefix is `creator-market/{creatorUid}/{listingId}/{uploadId}`.
+- Monitor Cloudinary storage and bandwidth usage. Cloudinary upload signatures have provider-defined validity; the Market's own upload intent expires after five minutes and can only be completed once. Expired or abandoned uploads should be included in periodic cleanup.
+- Never make authenticated media public to solve a delivery issue. Check the asset type, signature, preset, and Cloudinary response instead.

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "Separate DateVault Creator Market application",
   "dependencies": {
+    "cloudinary": "^2.7.0",
     "firebase-admin": "^12.7.0"
   },
   "scripts": {
