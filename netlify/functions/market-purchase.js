@@ -62,13 +62,13 @@ exports.handler = async event => {
       const platformLedgerRef = db.collection("marketPlatformLedger").doc(purchaseId);
       tx.update(buyerRef, { walletBalance: balance - gross });
       tx.create(purchaseRef, {
-        buyerUid: context.uid, creatorUid: listing.creatorUid, listingId,
+        buyerUid: context.uid, creatorUid: listing.creatorUid, creatorUsername: listing.creatorUsername, listingTitle: listing.title, listingId,
         offerId, offerType: offer.type, grossTokens: gross, platformFeeTokens: platformFee,
         creatorNetTokens: creatorNet, status: "completed",
         entitlementId, createdAt: context.admin.firestore.FieldValue.serverTimestamp()
       });
       tx.create(entitlementRef, {
-        buyerUid: context.uid, creatorUid: listing.creatorUid, listingId, offerId,
+        buyerUid: context.uid, creatorUid: listing.creatorUid, creatorUsername: listing.creatorUsername, listingTitle: listing.title, listingId, offerId,
         offerType: offer.type, startedAt: context.admin.firestore.Timestamp.fromMillis(now),
         expiresAt: expiresAt ? context.admin.firestore.Timestamp.fromDate(expiresAt) : null,
         downloadAllowed: listing.downloadAllowed === true, status: "active",
