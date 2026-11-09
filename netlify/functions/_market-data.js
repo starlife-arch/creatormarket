@@ -9,7 +9,7 @@ function getMarketUser(event) {
   return { uid: session.sub };
 }
 
-async function loadEligibleUser(event) {
+async function loadMarketUser(event) {
   const auth = getMarketUser(event);
   if (auth.error) return auth;
   const admin = getAdmin();
@@ -19,10 +19,16 @@ async function loadEligibleUser(event) {
   if (!isMarketAccountEligible(profile)) {
     return { error: json(403, { error: "This account cannot access Creator Market." }) };
   }
-  if (profile.marketAgeVerified !== true) {
+  return { uid: auth.uid, profile, admin, ageVerificationRequired: profile.marketAgeVerified !== true };
+}
+
+async function loadEligibleUser(event) {
+  const context = await loadMarketUser(event);
+  if (context.error) return context;
+  if (context.ageVerificationRequired) {
     return { error: json(403, { error: "Complete the separate 18+ verification before accessing creator content." }), ageVerificationRequired: true };
   }
-  return { uid: auth.uid, profile, admin };
+  return context;
 }
 
 function cleanText(value, max) {
