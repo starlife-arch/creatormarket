@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#111018">
+  <title>Signing in | DateVault Market</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111018;color:#f7f4fb;font:16px system-ui,sans-serif}
+    main{width:min(440px,calc(100% - 32px));padding:32px;border:1px solid #393244;border-radius:20px;background:#1b1924;text-align:center}
+    h1{font-size:24px;margin:0 0 12px}p{color:#b8b1c5;line-height:1.6}.dot{width:10px;height:10px;border-radius:50%;background:#c6a6ff;display:inline-block;margin-right:8px}
+    a{color:#c6a6ff}
+  </style>
+</head>
+<body>
+  <main>
+    <h1><span class="dot"></span>Signing you in</h1>
+    <p id="status" role="status">Securely connecting your DateVault account to Creator Market…</p>
+    <p id="fallback" hidden><a href="/">Return to Creator Market</a></p>
+  </main>
+  <script>
+    (async () => {
+      const status = document.getElementById("status");
+      const fallback = document.getElementById("fallback");
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+      // Remove the one-time code from the visible URL and browser history before
+      // making any other request or loading any additional resources.
+      window.history.replaceState(null, "", "/sso-callback.html");
+      if (!code) {
+        status.textContent = "This sign-in link is missing or has expired. Start again from DateVault.";
+        fallback.hidden = false;
+        return;
+      }
+      try {
+        const response = await fetch("/api/market-sso-redeem", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) throw new Error(result.error || "Sign-in could not be completed.");
+        window.location.replace("/member.html");
+      } catch (error) {
+        status.textContent = error.message || "Sign-in could not be completed. Start again from DateVault.";
+        fallback.hidden = false;
+      }
+    })();
+  </script>
+</body>
+</html>

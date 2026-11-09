@@ -1,0 +1,12 @@
+{
+  "name": "datevault-creator-market",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Separate DateVault Creator Market application",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  }
+}

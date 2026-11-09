@@ -1,31 +1,51 @@
 # DateVault Creator Market
 
-Separate web application for the Creator Market at `market.elysiandate.site`.
+Separate application for `market.elysiandate.site`.
 
 ## Current status
 
-This repository starts with a deployable static landing page only. It is a foundation for the separate Netlify project, **not a completed marketplace**.
+The `main` branch is a static landing page. The `feat/secure-market-sso-foundation` branch adds server-side SSO redemption and a separate Market session foundation. It is not active until the matching DateVault authorization-code issuer is implemented, the environment variables below are configured, and the preview is tested.
 
-Not implemented yet:
-- Secure sign-in / single-use SSO handoff from DateVault
-- Creator applications, identity checks and admin approval
-- Creator profiles and username search
-- Private media storage, previews and access enforcement
-- Timed viewing, rentals and permanent purchases
-- Checkout, creator earnings ledger and withdrawals
-- Age verification and adult-content access controls
-- Moderation, reporting and audit history
-
-Do not collect payment details, identity documents or private uploads on the static starter page.
-
-## Netlify
+## Netlify configuration
 
 - Build command: leave blank
-- Publish directory: `.`
-- No environment variables are required for this static starter.
+- Publish directory: `.` (a single dot)
+- Functions directory: `netlify/functions`
+- Node.js: 20
 
-Connect this repository to a **new** Netlify site. Keep the existing DateVault Netlify site unchanged.
+## Required environment variables (new Creator Market Netlify project only)
 
-## Domain
+Set these for the deploy contexts you intend to test:
 
-The intended custom domain is `market.elysiandate.site`. Add it to the new Netlify site first, then create only the DNS record Netlify instructs you to add in Cloudflare. Do not change the apex domain or existing DateVault records.
+- `FIREBASE_SERVICE_ACCOUNT`: the JSON service-account credential for the existing DateVault Firebase project. Store the full JSON as a secret environment variable; never commit it or put it in browser code.
+- `MARKET_SESSION_SECRET`: a newly generated random secret of at least 32 characters. Do not reuse a Firebase key, API key, password, or DateVault session secret.
+- `MARKET_ORIGIN`: `https://market.elysiandate.site` for the custom-domain deployment. Use the exact preview origin separately when testing a Netlify deploy preview.
+
+Do not copy all DateVault environment variables. Do not add payment, SMS, email, or other secrets until a specific Market feature needs them.
+
+## SSO protocol contract
+
+DateVault must issue a cryptographically random, single-use code after verifying the caller's Firebase ID token and account status. It stores only the SHA-256 hash in Firestore:
+
+Collection: `creatorMarketSsoCodes`
+
+Document ID: lowercase hex SHA-256 of the random code.
+
+Fields:
+- `uid`: authenticated DateVault Firebase UID
+- `audience`: exactly `market.elysiandate.site`
+- `expiresAt`: Firestore Timestamp, no more than 2 minutes after issue
+- `consumedAt`: absent until Market redeems the code
+
+The browser receives the raw code only for the one-time redirect to the Market callback. Market posts it to `/.netlify/functions/market-sso-redeem` (or `/api/market-sso-redeem`), which atomically marks the code consumed, checks account standing, and sets an HttpOnly, Secure, SameSite=Lax Market-only cookie. The code must never be a Firebase ID token or refresh token.
+
+The Market session is a signed 12-hour cookie. `GET /api/market-session` checks the signature and current account standing. `POST /api/market-logout` clears it. The cookie is host-only; it is not shared with the DateVault app.
+
+## Security notes
+
+- The Market callback and signed-in placeholder are present. The DateVault issuer is being developed in a separate draft PR in `starlife-arch/elysianprivatebackup`.
+- No Market session is usable until the matching DateVault issuer is merged/deployed to its preview and writes the specified Firestore document.
+- The Firebase service account is server-side only. Never expose it in client environment variables.
+- The Market session secret is separate and must be kept private.
+- Direct visits, account switching, logout, bans, replay, expiry, and preview-origin behavior must be tested before enabling navigation from DateVault.
+- Do not merge or deploy to production without explicit owner approval.
