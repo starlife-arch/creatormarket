@@ -41,6 +41,8 @@ exports.handler = async event => {
       if (!handle.exists) return json(404, { error: "Creator not found." });
       const blocked = await db.collection("marketBlocks").doc(context.uid).collection("blocked").doc(handle.data().uid).get();
       if (blocked.exists) return json(404, { error: "Creator not found." });
+      const creatorProfile = await db.collection("marketCreators").doc(handle.data().uid).get();
+      if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "Creator not found." });
       const snap = await db.collection("marketListings").where("creatorUid", "==", handle.data().uid).where("status", "==", "published").orderBy("updatedAt", "desc").limit(50).get();
       return json(200, { listings: snap.docs.map(d => {
         const v = d.data();
