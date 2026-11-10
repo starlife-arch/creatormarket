@@ -1,145 +1,107 @@
 const crypto = require("crypto");
+const cloudinary = require("cloudinary").v2;
 const { json, parseBody } = require("./_market-auth");
-const { loadMarketUser } = require("./_market-data");
+const { loadMarketUser, cleanText } = require("./_market-data");
 
-const YOTI_API = "https://age.yoti.com/api/v1";
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function yotiHeaders() {
-  const key = process.env.YOTI_AGE_API_KEY;
-  const sdkId = process.env.YOTI_SDK_ID;
-  if (!key || !sdkId) throw new Error("YOTI_NOT_CONFIGURED");
-  return {
-    Authorization: "Bearer " + key,
-    "Yoti-Sdk-Id": sdkId,
-    "Content-Type": "application/json"
-  };
-}
-
-async function yotiRequest(url, options) {
-  const response = await fetch(url, { ...options, headers: { ...yotiHeaders(), ...(options?.headers || {}) } });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error("YOTI_REQUEST_FAILED");
-    error.status = response.status;
-    throw error;
-  }
-  return data;
+function cloudinaryConfig() {
+  cloudinary.config({ secure: true });
+  const c = cloudinary.config();
+  if (!c.cloud_name || !c.api_key || !c.api_secret) throw new Error("CLOUDINARY_URL is not configured");
+  return c;
 }
 
 exports.handler = async event => {
-  if (!["GET", "POST"].includes(event.httpMethod)) {
-    return json(405, { error: "Method not allowed." }, { Allow: "GET, POST" });
-  }
+  if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed." }, { Allow: "GET, POST" });
   try {
     const context = await loadMarketUser(event);
     if (context.error) return context.error;
-    if (context.profile.marketAgeVerified === true) {
-      return json(200, { verified: true, status: "verified", message: "Your 18+ verification is already complete." });
-    }
-
+    if (context.profile.marketAgeVerified === true) return json(200, { verified: true, status: "verified", message: "Your 18+ verification is complete." });
     const db = context.admin.firestore();
-    const userRef = db.collection("users").doc(context.uid);
-    const activeRef = db.collection("marketAgeVerificationActive").doc(context.uid);
+    const requestRef = db.collection("marketAgeVerificationRequests").doc(context.uid);
 
-    if (event.httpMethod === "POST") {
-      const existing = await activeRef.get();
-      if (existing.exists) {
-        const saved = existing.data() || {};
-        if (saved.expiresAt?.toDate && saved.expiresAt.toDate().getTime() > Date.now() &&
-            saved.status !== "FAIL" && saved.status !== "ERROR" && saved.status !== "CANCELLED") {
-          return json(200, {
-            verificationUrl: saved.verificationUrl,
-            status: saved.status || "PENDING",
-            expiresAt: saved.expiresAt.toDate().toISOString(),
-            reused: true
-          });
-        }
+    if (event.httpMethod === "GET") {
+      const snap = await requestRef.get();
+      if (!snap.exists) return json(200, { verified: false, status: "not_started", message: "Start your age-verification request." });
+      const d = snap.data() || {};
+      return json(200, { verified: false, status: d.status || "awaiting_upload", requestId: d.requestId || null,
+        message: d.status === "pending_review" ? "Your evidence was submitted and is awaiting administrator review." :
+          d.status === "rejected" ? (d.reviewNote || "Your request was not approved. You may submit a new request.") :
+          "Upload a photo of your identity document and a selfie to request review." });
+    }
+
+    const body = parseBody(event);
+    const action = cleanText(body.action, 32) || "start";
+    if (action === "start") {
+      const old = await requestRef.get();
+      if (old.exists && ["awaiting_upload", "pending_review"].includes(old.data().status)) {
+        return json(200, { requestId: old.data().requestId, status: old.data().status, verificationUrl: "/verify-age.html", reused: true });
       }
-
-      const origin = (process.env.MARKET_ORIGIN || "https://market.elysiandate.site").replace(/\/$/, "");
-      const callbackUrl = origin + "/studio.html?ageVerification=complete";
-      const referenceId = crypto.createHash("sha256").update(context.uid).digest("hex").slice(0, 32);
-      const created = await yotiRequest(YOTI_API + "/sessions", {
-        method: "POST",
-        body: JSON.stringify({
-          type: "OVER",
-          ttl: 900,
-          reference_id: referenceId,
-          callback: { url: callbackUrl, auto: true },
-          age_estimation: { allowed: true, threshold: 21, level: "PASSIVE", retry_limit: 2 },
-          digital_id: { allowed: true, threshold: 18, age_estimation_allowed: true, age_estimation_threshold: 21, retry_limit: 2 },
-          doc_scan: { allowed: true, threshold: 18, level: "PASSIVE", authenticity: "AUTO", retry_limit: 2 }
-        })
-      });
-      if (!created.id || !UUID.test(created.id)) throw new Error("YOTI_INVALID_SESSION");
-      const expiresAt = created.expires_at ? new Date(created.expires_at) : new Date(Date.now() + 15 * 60 * 1000);
-      const verificationUrl = "https://age.yoti.com?sessionId=" + encodeURIComponent(created.id) +
-        "&sdkId=" + encodeURIComponent(process.env.YOTI_SDK_ID);
-      await activeRef.set({
-        uid: context.uid,
-        provider: "yoti",
-        sessionId: created.id,
-        referenceId,
-        verificationUrl,
-        status: created.status || "PENDING",
-        expiresAt: context.admin.firestore.Timestamp.fromDate(expiresAt),
+      const requestId = crypto.randomUUID();
+      await requestRef.set({ uid: context.uid, requestId, status: "awaiting_upload", evidence: {},
         createdAt: context.admin.firestore.FieldValue.serverTimestamp(),
-        updatedAt: context.admin.firestore.FieldValue.serverTimestamp()
-      });
-      return json(200, { verificationUrl, status: created.status || "PENDING", expiresAt: expiresAt.toISOString() });
+        updatedAt: context.admin.firestore.FieldValue.serverTimestamp(),
+        evidenceExpiresAt: context.admin.firestore.Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000) });
+      return json(200, { requestId, status: "awaiting_upload", verificationUrl: "/verify-age.html" });
     }
 
-    const active = await activeRef.get();
-    const saved = active.exists ? active.data() || {} : {};
-    const sessionId = String(event.queryStringParameters?.sessionId || saved.sessionId || "");
-    if (!UUID.test(sessionId)) return json(200, { verified: false, status: "not_started", message: "You have not started age verification yet." });
-    const snap = await db.collection("marketAgeVerificationSessions").doc(sessionId).get();
-    if (!snap.exists && saved.sessionId !== sessionId) return json(404, { error: "Verification session not found." });
-    const session = snap.exists ? snap.data() : saved;
-    if (session.uid !== context.uid || session.sessionId !== sessionId) {
-      return json(403, { error: "This verification session does not belong to your account." });
+    if (action === "upload-intent") {
+      const slot = cleanText(body.slot, 24), contentType = cleanText(body.contentType, 40).toLowerCase();
+      const sizeBytes = Math.floor(Number(body.sizeBytes));
+      if (!["identity_document", "selfie"].includes(slot) ||
+          !["image/jpeg", "image/png", "image/webp"].includes(contentType) ||
+          !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > 8 * 1024 * 1024) {
+        return json(400, { error: "Upload a JPG, PNG or WebP image no larger than 8 MB." });
+      }
+      const request = await requestRef.get();
+      if (!request.exists || request.data().status !== "awaiting_upload") return json(409, { error: "Start or resume your verification request first." });
+      const c = cloudinaryConfig(), uploadId = crypto.randomUUID();
+      const publicId = "creator-market-verification/" + context.uid + "/" + request.data().requestId + "/" + slot + "-" + uploadId;
+      const timestamp = Math.floor(Date.now() / 1000);
+      const signedParams = { public_id: publicId, timestamp, type: "authenticated", overwrite: false };
+      const signature = cloudinary.utils.api_sign_request(signedParams, c.api_secret);
+      await db.collection("marketAgeVerificationUploads").doc(uploadId).create({
+        uid: context.uid, requestId: request.data().requestId, slot, publicId, contentType, sizeBytes,
+        expiresAt: context.admin.firestore.Timestamp.fromMillis(Date.now() + 10 * 60 * 1000),
+        createdAt: context.admin.firestore.FieldValue.serverTimestamp()
+      });
+      return json(200, { uploadId, uploadUrl: "https://api.cloudinary.com/v1_1/" + encodeURIComponent(c.cloud_name) + "/image/upload",
+        uploadParams: { ...signedParams, api_key: c.api_key, signature }, expiresInSeconds: 600 });
     }
 
-    const result = await yotiRequest(YOTI_API + "/sessions/" + encodeURIComponent(sessionId) + "/result", { method: "GET" });
-    const status = String(result.status || "UNKNOWN").toUpperCase();
-    const now = context.admin.firestore.FieldValue.serverTimestamp();
-
-    if (status === "COMPLETE" && result.type === "OVER") {
-      await userRef.update({
-        marketAgeVerified: true,
-        marketAgeVerifiedAt: now,
-        marketAgeVerificationProvider: "yoti",
-        marketAgeVerificationSessionId: sessionId
+    if (action === "complete-upload") {
+      const uploadId = cleanText(body.uploadId, 64);
+      if (!uploadId) return json(400, { error: "Upload reference is required." });
+      const uploadRef = db.collection("marketAgeVerificationUploads").doc(uploadId);
+      const uploadSnap = await uploadRef.get();
+      if (!uploadSnap.exists) return json(404, { error: "Upload request not found." });
+      const upload = uploadSnap.data();
+      if (upload.uid !== context.uid || !upload.expiresAt?.toDate || upload.expiresAt.toDate().getTime() < Date.now()) return json(403, { error: "This upload request is invalid or expired." });
+      cloudinaryConfig();
+      const asset = await cloudinary.api.resource(upload.publicId, { resource_type: "image", type: "authenticated" });
+      if (asset.public_id !== upload.publicId || asset.type !== "authenticated" ||
+          !["jpg", "jpeg", "png", "webp"].includes(String(asset.format).toLowerCase()) ||
+          !Number.isSafeInteger(Number(asset.bytes)) || Number(asset.bytes) > 8 * 1024 * 1024) {
+        return json(400, { error: "The uploaded file did not pass the private evidence checks." });
+      }
+      await db.runTransaction(async tx => {
+        const fresh = await tx.get(requestRef);
+        if (!fresh.exists || fresh.data().requestId !== upload.requestId || fresh.data().status !== "awaiting_upload") throw new Error("REQUEST_NOT_ACTIVE");
+        tx.set(requestRef, { evidence: { ...(fresh.data().evidence || {}), [upload.slot]: { publicId: upload.publicId, format: asset.format, bytes: asset.bytes } },
+          updatedAt: context.admin.firestore.FieldValue.serverTimestamp() }, { merge: true });
+        tx.delete(uploadRef);
       });
-      await activeRef.set({ ...session, status: "COMPLETE", completedAt: now, updatedAt: now }, { merge: true });
-      await db.collection("marketAdminAudit").doc().set({
-        actorUid: "yoti",
-        action: "market_age_verification_passed",
-        targetUid: context.uid,
-        provider: "yoti",
-        sessionId,
-        createdAt: now
-      });
-      return json(200, { verified: true, status: "verified", message: "Your 18+ verification is complete." });
+      const updated = await requestRef.get(), evidence = updated.data().evidence || {};
+      const complete = Boolean(evidence.identity_document && evidence.selfie);
+      if (complete) await requestRef.update({ status: "pending_review", submittedAt: context.admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
+      return json(200, { ok: true, complete, status: complete ? "pending_review" : "awaiting_upload",
+        message: complete ? "Both files were received securely. Your request is awaiting administrator review." : "File received securely. Upload the remaining file." });
     }
-
-    if (["FAIL", "ERROR", "CANCELLED", "EXPIRED"].includes(status)) {
-      await activeRef.set({ ...session, status, updatedAt: now }, { merge: true });
-      return json(200, {
-        verified: false,
-        status: status.toLowerCase(),
-        message: status === "FAIL" ? "The provider could not confirm that you meet the 18+ requirement. You can start a new check." : "This verification attempt did not finish. You can start a new check."
-      });
-    }
-
-    await activeRef.set({ ...session, status, updatedAt: now }, { merge: true });
-    return json(200, { verified: false, status: status.toLowerCase(), message: "Your verification is still being processed." });
+    return json(400, { error: "Unsupported verification action." });
   } catch (error) {
-    if (error.message === "YOTI_NOT_CONFIGURED") {
-      return json(503, { error: "Age verification is not connected yet. The Market administrator must configure the Yoti API credentials." });
-    }
+    if (error.message === "CLOUDINARY_URL is not configured") return json(503, { error: "Secure evidence storage is not configured yet." });
+    if (error.message === "REQUEST_NOT_ACTIVE") return json(409, { error: "This verification request is no longer active." });
     console.error("Market age verification failed:", error.message);
-    return json(502, { error: "We could not contact the age-verification provider. Please try again shortly." });
+    return json(500, { error: "Unable to process age verification. Please try again." });
   }
 };
