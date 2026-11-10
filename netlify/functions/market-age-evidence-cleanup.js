@@ -38,5 +38,31 @@ exports.handler = async () => {
     }).catch(error => console.error("Stale upload deletion failed:", error.message));
     await doc.ref.delete();
   }
-  return { statusCode: 200, body: JSON.stringify({ ok: true, expiredRequests: removed, staleUploads: staleUploads.size }) };
+
+  const identityExpired = await db.collection("marketCreatorIdentityRequests")
+    .where("evidenceExpiresAt", "<=", now).limit(100).get();
+  let identityRemoved = 0;
+  for (const doc of identityExpired.docs) {
+    const d = doc.data(), evidence = d.evidence || {};
+    for (const item of Object.values(evidence)) {
+      if (item?.publicId) await cloudinary.uploader.destroy(item.publicId, {
+        resource_type: "image", type: "authenticated", invalidate: true
+      }).catch(error => console.error("Expired creator identity evidence deletion failed:", error.message));
+    }
+    await doc.ref.set({
+      evidence: {}, evidenceDeletedAt: admin.firestore.FieldValue.serverTimestamp(),
+      status: d.status === "pending_review" || d.status === "awaiting_upload" ? "expired" : d.status
+    }, { merge: true });
+    identityRemoved++;
+  }
+  const identityUploads = await db.collection("marketCreatorIdentityUploads")
+    .where("expiresAt", "<=", now).limit(200).get();
+  for (const doc of identityUploads.docs) {
+    const d = doc.data();
+    if (d.publicId) await cloudinary.uploader.destroy(d.publicId, {
+      resource_type: "image", type: "authenticated", invalidate: true
+    }).catch(error => console.error("Stale creator identity upload deletion failed:", error.message));
+    await doc.ref.delete();
+  }
+  return { statusCode: 200, body: JSON.stringify({ ok: true, expiredRequests: removed, staleUploads: staleUploads.size, expiredCreatorIdentityRequests: identityRemoved, staleCreatorIdentityUploads: identityUploads.size }) };
 };

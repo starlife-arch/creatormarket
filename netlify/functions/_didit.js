@@ -21,16 +21,24 @@ function header(event, name) {
   return key ? String(headers[key] || "") : "";
 }
 
-function verifyDiditSignature(body, event, secret, nowSeconds = Math.floor(Date.now() / 1000)) {
-  if (!secret) return false;
-  const timestamp = header(event, "x-timestamp");
-  const signature = header(event, "x-signature-v2");
-  if (!/^\d+$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(signature)) return false;
-  if (Math.abs(nowSeconds - Number(timestamp)) > 300) return false;
+function matchesSignature(body, signature, secret) {
+  if (!secret || !/^[a-f0-9]{64}$/i.test(signature)) return false;
   const expected = crypto.createHmac("sha256", secret)
     .update(canonicalDiditPayload(body), "utf8").digest();
   const supplied = Buffer.from(signature, "hex");
   return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+}
+
+function verifyDiditSignature(body, event, currentSecret, previousSecret = "", nowSeconds = Math.floor(Date.now() / 1000)) {
+  const timestamp = header(event, "x-timestamp");
+  if (!/^\\d+$/.test(timestamp) || Math.abs(nowSeconds - Number(timestamp)) > 300) return false;
+
+  // During the 24-hour rotation window Didit signs the -Previous header with
+  // the replaced secret, not the current one. Never test it against the new key.
+  const currentSignature = header(event, "x-signature-v2");
+  const previousSignature = header(event, "x-signature-v2-previous");
+  return matchesSignature(body, currentSignature, currentSecret) ||
+    matchesSignature(body, previousSignature, previousSecret);
 }
 
 module.exports = { sortKeys, canonicalDiditPayload, verifyDiditSignature };

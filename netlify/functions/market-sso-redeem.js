@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const {
   getAdmin, originAllowed, json, parseBody, signSession, sessionCookie
 } = require("./_market-auth");
-const { isMarketAccountEligible } = require("./_market-data");
+const { isMarketAccountEligible, isAdmin } = require("./_market-data");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { "Cache-Control": "no-store" }, body: "" };
@@ -21,6 +21,7 @@ exports.handler = async (event) => {
     const codeHash = crypto.createHash("sha256").update(code).digest("hex");
     const codeRef = db.collection("creatorMarketSsoCodes").doc(codeHash);
     let uid = null;
+    let destination = "/member";
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(codeRef);
@@ -32,6 +33,7 @@ exports.handler = async (event) => {
       }
       if (typeof data.uid !== "string" || !data.uid) throw new Error("SSO_CODE_INVALID");
       uid = data.uid;
+      destination = data.destination === "/admin" ? "/admin" : "/member";
       tx.update(codeRef, { consumedAt: admin.firestore.FieldValue.serverTimestamp() });
     });
 
@@ -40,8 +42,11 @@ exports.handler = async (event) => {
       return json(403, { error: "This account cannot access Creator Market" });
     }
 
+    if (destination === "/admin" && !isAdmin(userSnap.data() || {})) {
+      return json(403, { error: "Administrator access is required for Market Admin." });
+    }
     const token = signSession(uid);
-    return json(200, { ok: true }, { "Set-Cookie": sessionCookie(token) });
+    return json(200, { ok: true, redirectTo: destination === "/admin" ? "/admin" : "/member" }, { "Set-Cookie": sessionCookie(token) });
   } catch (error) {
     if (error.message === "SSO_CODE_INVALID") return json(401, { error: "This sign-in link is invalid, expired, or already used" });
     console.error("Creator Market SSO redemption failed:", error.message);

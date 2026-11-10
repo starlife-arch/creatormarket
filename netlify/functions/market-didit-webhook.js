@@ -20,30 +20,48 @@ exports.handler = async event => {
     const workflowType = String(process.env.DIDIT_WORKFLOW_TYPE || "").toLowerCase();
     const minimumAge = String(process.env.DIDIT_MINIMUM_AGE || "");
     if (!secret || !workflowId || !["live", "sandbox"].includes(environment) || workflowType !== "adaptive_age_verification" || minimumAge !== "18") {
-      return json(503, { error: "Didit webhook is not configured." });
+      console.error("Didit webhook configuration incomplete", {
+        hasSecret: Boolean(secret), hasWorkflowId: Boolean(workflowId),
+        environmentValid: ["live", "sandbox"].includes(environment),
+        workflowTypeValid: workflowType === "adaptive_age_verification", minimumAgeValid: minimumAge === "18"
+      });
+      return json(503, { error: "Didit webhook is not configured. Check the Market Didit environment variables." });
     }
 
     const body = parseBody(event);
-    if (!body || typeof body !== "object" || Array.isArray(body)) return json(400, { error: "Invalid webhook payload." });
-    if (!verifyDiditSignature(body, event, secret)) return json(401, { error: "Invalid Didit signature." });
+    if (!body || typeof body !== "object" || Array.isArray(body)) return json(400, { error: "Invalid webhook payload.", code: "INVALID_PAYLOAD" });
+    if (!verifyDiditSignature(body, event, secret, process.env.DIDIT_WEBHOOK_SECRET_PREVIOUS || "")) return json(401, { error: "Invalid Didit signature. Check this destination's signing secret and timestamp.", code: "SIGNATURE_INVALID" });
 
-    // Test deliveries validate the endpoint but must never change a real member's age status.
+    // Didit's signed test deliveries must never alter a real member's verification.
     if (getHeader(event, "x-didit-test-webhook").toLowerCase() === "true") return json(200, { ok: true, test: true });
-    if (body.webhook_type !== "status.updated") return json(200, { ok: true, ignored: true });
-    if (!body.event_id || !body.session_id || !body.status || body.workflow_id !== workflowId ||
-        body.environment !== environment ||
-        (process.env.DIDIT_APPLICATION_ID && body.application_id !== process.env.DIDIT_APPLICATION_ID)) {
-      return json(400, { error: "Webhook does not match the configured Didit application or workflow." });
+    if (body.webhook_type !== "status.updated") return json(200, { ok: true, ignored: true, receivedEvent: String(body.webhook_type || "unknown") });
+
+    const missing = ["event_id", "session_id", "status", "workflow_id", "environment"].filter(key =>
+      body[key] === undefined || body[key] === null || String(body[key]).trim() === "");
+    if (missing.length) return json(400, {
+      error: "Didit status event is missing required fields.",
+      code: "MISSING_EVENT_FIELDS",
+      fields: missing
+    });
+    if (body.workflow_id !== workflowId) return json(400, { error: "This event belongs to a different Didit workflow.", code: "WORKFLOW_MISMATCH" });
+    if (String(body.environment).toLowerCase() !== environment) return json(400, { error: "This event belongs to a different Didit environment.", code: "ENVIRONMENT_MISMATCH" });
+    if (process.env.DIDIT_APPLICATION_ID && body.application_id !== process.env.DIDIT_APPLICATION_ID) {
+      return json(400, { error: "This event belongs to a different Didit application. Check DIDIT_APPLICATION_ID.", code: "APPLICATION_MISMATCH" });
     }
 
     const admin = getAdmin(), db = admin.firestore();
     const eventRef = db.collection("marketDiditWebhookEvents").doc(String(body.event_id));
     const sessionRef = db.collection("marketDiditSessions").doc(String(body.session_id));
     const mappingSnap = await sessionRef.get();
-    if (!mappingSnap.exists) return json(404, { error: "Didit session is not registered in Creator Market." });
+    if (!mappingSnap.exists) return json(404, { error: "Didit session is not registered in Creator Market. Start a new verification from Market and resend this event.", code: "SESSION_NOT_REGISTERED" });
     const mapping = mappingSnap.data() || {};
     if (!mapping.uid || body.vendor_data !== mapping.uid || mapping.workflowId !== workflowId) {
-      return json(400, { error: "Didit session ownership could not be verified." });
+      console.error("Didit session ownership mismatch", {
+        sessionRegistered: true, hasUid: Boolean(mapping.uid),
+        vendorDataMatches: Boolean(mapping.uid && body.vendor_data === mapping.uid),
+        sessionWorkflowMatches: mapping.workflowId === workflowId
+      });
+      return json(400, { error: "Didit session ownership or workflow mapping does not match this Market verification.", code: "SESSION_OWNERSHIP_MISMATCH" });
     }
 
     const uid = mapping.uid;
@@ -55,7 +73,7 @@ exports.handler = async event => {
     const requestStatus = approved ? "approved" :
       status === "Declined" ? "rejected" :
       status === "In Review" ? "pending_review" :
-      status === "Abandoned" || status === "Expired" ? "abandoned" :
+      status === "Abandoned" || status === "Expired" || status === "Kyc Expired" ? "abandoned" :
       "didit_" + statusLabel(status);
 
     await db.runTransaction(async tx => {
@@ -72,8 +90,6 @@ exports.handler = async event => {
         sessionId: body.session_id, uid, status, webhookType: body.webhook_type,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
-      // Didit may deliver retries or older events out of order. Record every event,
-      // but only let the newest underlying session update change access.
       if (receivedAt >= lastAppliedAt) {
         tx.set(userRef, {
           marketAgeVerified: approved,
@@ -102,7 +118,7 @@ exports.handler = async event => {
     });
     return json(200, { ok: true });
   } catch (error) {
-    if (error.message === "DIDIT_SESSION_MAPPING_INVALID") return json(404, { error: "Didit session mapping is unavailable." });
+    if (error.message === "DIDIT_SESSION_MAPPING_INVALID") return json(404, { error: "Didit session mapping is unavailable.", code: "SESSION_MAPPING_INVALID" });
     console.error("Market Didit webhook failed:", error.message);
     return json(500, { error: "Unable to process Didit webhook." });
   }
