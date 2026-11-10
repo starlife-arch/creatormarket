@@ -33,6 +33,11 @@
   status = 200
 
 [[redirects]]
+  from = "/verify-creator-identity"
+  to = "/verify-creator-identity.html"
+  status = 200
+
+[[redirects]]
   from = "/verify-age"
   to = "/verify-age.html"
   status = 200
