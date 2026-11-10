@@ -24,13 +24,18 @@ function header(event, name) {
 function verifyDiditSignature(body, event, secret, nowSeconds = Math.floor(Date.now() / 1000)) {
   if (!secret) return false;
   const timestamp = header(event, "x-timestamp");
-  const signature = header(event, "x-signature-v2");
-  if (!/^\d+$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(signature)) return false;
+  const signatures = [
+    header(event, "x-signature-v2"),
+    header(event, "x-signature-v2-previous")
+  ].filter(value => /^[a-f0-9]{64}$/i.test(value));
+  if (!/^\\d+$/.test(timestamp) || !signatures.length) return false;
   if (Math.abs(nowSeconds - Number(timestamp)) > 300) return false;
   const expected = crypto.createHmac("sha256", secret)
     .update(canonicalDiditPayload(body), "utf8").digest();
-  const supplied = Buffer.from(signature, "hex");
-  return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+  return signatures.some(signature => {
+    const supplied = Buffer.from(signature, "hex");
+    return supplied.length === expected.length && crypto.timingSafeEqual(supplied, expected);
+  });
 }
 
 module.exports = { sortKeys, canonicalDiditPayload, verifyDiditSignature };
