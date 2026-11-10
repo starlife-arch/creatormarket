@@ -39,7 +39,9 @@ exports.handler = async event => {
       const apiKey = process.env.DIDIT_API_KEY;
       const workflowId = process.env.DIDIT_WORKFLOW_ID;
       const environment = String(process.env.DIDIT_ENVIRONMENT || "").toLowerCase();
-      if (!apiKey || !workflowId || !["live", "sandbox"].includes(environment)) {
+      const workflowType = String(process.env.DIDIT_WORKFLOW_TYPE || "").toLowerCase();
+      const minimumAge = String(process.env.DIDIT_MINIMUM_AGE || "");
+      if (!apiKey || !workflowId || !["live", "sandbox"].includes(environment) || workflowType !== "adaptive_age_verification" || minimumAge !== "18") {
         return json(503, { error: "Didit is not configured yet. Please use manual age review or contact support." });
       }
       const old = await requestRef.get();
