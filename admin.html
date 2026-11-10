@@ -31,7 +31,5 @@ document.getElementById("verifyForm").addEventListener("submit",async e=>{
  }catch(err){status.textContent=err.message||"Could not update verification.";}
 });
 document.body.addEventListener("click",e=>{const b=e.target.closest("button[data-kind]");if(b)act(b);});
-Promise.all([loadApplications(),loadWithdrawals(),loadReports()]);}catch(e){alert(e.message||"Action failed.");button.disabled=false;}}
-document.body.addEventListener("click",e=>{const b=e.target.closest("button[data-kind]");if(b)act(b);});
 Promise.all([loadApplications(),loadWithdrawals(),loadReports()]);
 </script></body></html>
