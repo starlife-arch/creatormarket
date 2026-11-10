@@ -42,7 +42,7 @@ function validUsername(value) {
 function isMarketAccountEligible(profile = {}) {
   if (profile.banned === true || profile.suspended === true || profile.accountSuspended === true) return false;
   if (["rejected", "suspended", "pending_admin_review"].includes(profile.status)) return false;
-  if (profile.role === "admin") return true;
+  if (profile.role === "admin" || profile.isAdmin === true) return true;
   return profile.adminApproved === true ||
     ["active_member", "approved_pending_invite", "approved_pending_payment"].includes(profile.status);
 }
