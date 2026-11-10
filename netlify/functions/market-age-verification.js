@@ -98,14 +98,14 @@ exports.handler = async event => {
       const old = await requestRef.get();
       if (old.exists && ["awaiting_upload", "pending_review"].includes(old.data().status)) {
         if (old.data().provider === "didit") return json(409, { error: "A Didit verification is already in progress. Complete it or wait for its result." });
-        return json(200, { requestId: old.data().requestId, status: old.data().status, verificationUrl: "/verify-age.html", reused: true });
+        return json(200, { requestId: old.data().requestId, status: old.data().status, verificationUrl: "/verify-age", reused: true });
       }
       const requestId = crypto.randomUUID();
       await requestRef.set({ uid: context.uid, requestId, status: "awaiting_upload", evidence: {},
         createdAt: context.admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: context.admin.firestore.FieldValue.serverTimestamp(),
         evidenceExpiresAt: context.admin.firestore.Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000) });
-      return json(200, { requestId, status: "awaiting_upload", verificationUrl: "/verify-age.html" });
+      return json(200, { requestId, status: "awaiting_upload", verificationUrl: "/verify-age" });
     }
 
     if (action === "upload-intent") {
