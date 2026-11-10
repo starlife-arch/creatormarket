@@ -14,7 +14,9 @@ Independent application for `https://market.elysiandate.site`. Keep it separate 
 - `MARKET_SESSION_SECRET`: unique random secret, minimum 32 characters.
 - `MARKET_ORIGIN`: exact Market origin, normally `https://market.elysiandate.site`.
 - `CLOUDINARY_URL`: dedicated Creator Market Cloudinary account URL (server-only).
-- `MARKET_CLOUDINARY_UPLOAD_PRESET`: name of the signed, authenticated-delivery upload preset.\n- `DIDIT_API_KEY`: server-only Didit API key for the same Sandbox or Live application selected below.\n- `DIDIT_WORKFLOW_ID`: published Didit age-verification workflow ID.\n- `DIDIT_WEBHOOK_SECRET`: signing secret for the dedicated Didit webhook destination (not an API key).\n- `DIDIT_ENVIRONMENT`: exactly `sandbox` or `live`; webhook events from the other environment are rejected.\n- `DIDIT_APPLICATION_ID`: optional Didit application UUID to pin webhook events to one application.
+- `MARKET_CLOUDINARY_UPLOAD_PRESET`: name of the signed, authenticated-delivery upload preset.\n- `DIDIT_API_KEY`: server-only Didit API key for the same Sandbox or Live application selected below.\n- `DIDIT_WORKFLOW_ID`: published Didit age-verification workflow ID.\n- `DIDIT_WEBHOOK_SECRET`: signing secret for the dedicated Didit webhook destination (not an API key).\n- `DIDIT_ENVIRONMENT`: exactly `sandbox` or `live`; webhook events from the other environment are rejected.
+- `DIDIT_WORKFLOW_TYPE`: must be `adaptive_age_verification` after confirming the Didit workflow is specifically configured for age assurance.
+- `DIDIT_MINIMUM_AGE`: must be `18`; the Didit Age Estimation step must use `minimum_age_threshold: 18` and an ID-verification fallback for borderline results.\n- `DIDIT_APPLICATION_ID`: optional Didit application UUID to pin webhook events to one application.
 
 Never put service credentials or session secrets in browser code.
 
