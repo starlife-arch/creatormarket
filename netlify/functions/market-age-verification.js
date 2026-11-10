@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const cloudinary = require("cloudinary").v2;
-const { json, parseBody } = require("./_market-auth");
+const { json, parseBody, originAllowed } = require("./_market-auth");
 const { loadMarketUser, cleanText } = require("./_market-data");
 
 function cloudinaryConfig() {
@@ -13,6 +13,7 @@ function cloudinaryConfig() {
 exports.handler = async event => {
   if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed." }, { Allow: "GET, POST" });
   try {
+    if (event.httpMethod === "POST" && !originAllowed(event)) return json(403, { error: "Request origin is not allowed." });
     const context = await loadMarketUser(event);
     if (context.error) return context.error;
     if (context.profile.marketAgeVerified === true) return json(200, { verified: true, status: "verified", message: "Your 18+ verification is complete." });
