@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const {
   getAdmin, originAllowed, json, parseBody, signSession, sessionCookie
 } = require("./_market-auth");
-const { isMarketAccountEligible } = require("./_market-data");
+const { isMarketAccountEligible, isAdmin } = require("./_market-data");
 
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return { statusCode: 204, headers: { "Cache-Control": "no-store" }, body: "" };
@@ -20,7 +20,7 @@ exports.handler = async (event) => {
     const db = admin.firestore();
     const codeHash = crypto.createHash("sha256").update(code).digest("hex");
     const codeRef = db.collection("creatorMarketSsoCodes").doc(codeHash);
-    let uid = null;
+    let uid = null;\n    let destination = "/member";
 
     await db.runTransaction(async (tx) => {
       const snap = await tx.get(codeRef);
@@ -31,7 +31,7 @@ exports.handler = async (event) => {
         throw new Error("SSO_CODE_INVALID");
       }
       if (typeof data.uid !== "string" || !data.uid) throw new Error("SSO_CODE_INVALID");
-      uid = data.uid;
+      uid = data.uid;\n      destination = data.destination === "/admin" ? "/admin" : "/member";
       tx.update(codeRef, { consumedAt: admin.firestore.FieldValue.serverTimestamp() });
     });
 
