@@ -1,4 +1,5 @@
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -11,8 +12,9 @@ exports.handler = async event => {
     const adminSnap = await db.collection("users").doc(auth.uid).get();
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
     if (event.httpMethod === "GET") {
-      const snap = await db.collection("marketCreatorWithdrawals").where("status", "==", "pending").orderBy("createdAt", "asc").limit(50).get();
-      return json(200, { withdrawals: snap.docs.map(doc => {
+      const snap = await db.collection("marketCreatorWithdrawals").where("status", "==", "pending").limit(250).get();
+      const orderedDocs = [...snap.docs].sort((a,b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0)).slice(0,50);
+      return json(200, { withdrawals: orderedDocs.map(doc => {
         const d = doc.data();
         return { id: doc.id, creatorUid: d.creatorUid, amountTokens: d.amountTokens, method: d.method, payoutDetails: d.payoutDetails, createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null };
       })});
@@ -46,7 +48,6 @@ exports.handler = async event => {
   } catch (error) {
     if (error.message === "WITHDRAWAL_NOT_PENDING") return json(409, { error: "This withdrawal is no longer pending." });
     if (["CREATOR_BALANCE_MISSING", "RESERVATION_MISMATCH"].includes(error.message)) return json(409, { error: "The creator earnings reservation does not match. Please investigate before changing this request." });
-    console.error("Market admin withdrawal review failed:", error.message);
-    return json(500, { error: "Unable to review this withdrawal." });
+    return adminFailure(error, "Unable to review this withdrawal.");
   }
 };

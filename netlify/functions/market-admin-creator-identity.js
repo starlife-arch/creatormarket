@@ -1,5 +1,6 @@
 const { cloudinary } = require("./_cloudinary");
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -14,9 +15,10 @@ exports.handler = async event => {
     cloudinary.config({ secure: true });
     if (event.httpMethod === "GET") {
       const snap = await db.collection("marketCreatorIdentityRequests")
-        .where("status", "==", "pending_review").orderBy("submittedAt", "asc").limit(50).get();
+        .where("status", "==", "pending_review").limit(250).get();
+      const orderedDocs = [...snap.docs].sort((a,b) => (a.data().submittedAt?.toMillis?.() || 0) - (b.data().submittedAt?.toMillis?.() || 0)).slice(0,50);
       const now = Math.floor(Date.now() / 1000);
-      const requests = await Promise.all(snap.docs.map(async doc => {
+      const requests = await Promise.all(orderedDocs.map(async doc => {
         const d = doc.data(), evidence = d.evidence || {};
         const [applicationSnap, userSnap] = await Promise.all([
           db.collection("marketCreatorApplications").doc(doc.id).get(),
@@ -90,7 +92,6 @@ exports.handler = async event => {
     if (error.message === "IDENTITY_REVIEW_NOT_PENDING") return json(409, { error: "This request has already been reviewed." });
     if (error.message === "IDENTITY_USER_NOT_FOUND") return json(404, { error: "Creator account not found." });
     if (error.code === "CLOUDINARY_CONFIG") return json(503, { error: "Secure evidence storage is not configured yet." });
-    console.error("Market creator identity review failed:", error.message);
-    return json(500, { error: "Unable to review creator identity evidence." });
+    return adminFailure(error, "Unable to review creator identity evidence.");
   }
 };

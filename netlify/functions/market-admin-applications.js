@@ -1,4 +1,5 @@
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, validUsername, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -12,8 +13,9 @@ exports.handler = async event => {
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
     const apps = db.collection("marketCreatorApplications");
     if (event.httpMethod === "GET") {
-      const snap = await apps.where("status", "==", "pending").orderBy("createdAt", "asc").limit(50).get();
-      const applications = await Promise.all(snap.docs.map(async doc => {
+      const snap = await apps.where("status", "==", "pending").limit(250).get();
+      const orderedDocs = [...snap.docs].sort((a,b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0)).slice(0,50);
+      const applications = await Promise.all(orderedDocs.map(async doc => {
         const d = doc.data();
         const userSnap = await db.collection("users").doc(doc.id).get();
         const user = userSnap.exists ? userSnap.data() || {} : {};
@@ -68,7 +70,6 @@ exports.handler = async event => {
   } catch (error) {
     if (error.message === "USERNAME_TAKEN") return json(409, { error: "That username is already in use. Ask the creator to choose another." });
     if (error.message === "APPLICATION_NOT_PENDING") return json(409, { error: "This application is no longer pending." });
-    console.error("Market admin application review failed:", error.message);
-    return json(500, { error: "Unable to review this application." });
+    return adminFailure(error, "Unable to review this application.");
   }
 };
