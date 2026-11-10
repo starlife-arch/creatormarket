@@ -7,7 +7,7 @@ exports.handler = async event => {
     const context = await loadMarketUser(event);
     if (context.error) return context.error;
     const snap = await context.admin.firestore().collection("marketCreatorApplications").doc(context.uid).get();
-    if (!snap.exists) return json(200, { application: null, ageVerified: context.profile.marketAgeVerified === true });
+    if (!snap.exists) return json(200, { application: null, ageVerified: context.profile.marketAgeVerified === true, identityVerified: context.profile.marketCreatorIdentityVerified === true });
     const d = snap.data();
     return json(200, { application: {
       status: d.status || "pending",
@@ -15,7 +15,7 @@ exports.handler = async event => {
       displayName: d.displayName || "",
       submittedAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null,
       reviewNote: d.status === "rejected" ? (d.reviewNote || "") : ""
-    }, ageVerified: context.profile.marketAgeVerified === true });
+    }, ageVerified: context.profile.marketAgeVerified === true, identityVerified: context.profile.marketCreatorIdentityVerified === true });
   } catch (error) {
     console.error("Market application lookup failed:", error.message);
     return json(500, { error: "Unable to load your creator application." });
