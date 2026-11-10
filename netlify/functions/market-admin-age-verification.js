@@ -1,5 +1,6 @@
 const { cloudinary } = require("./_cloudinary");
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -12,15 +13,24 @@ exports.handler = async event => {
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
     cloudinary.config({ secure: true });
     if (event.httpMethod === "GET") {
-      const snap = await db.collection("marketAgeVerificationRequests").where("status", "==", "pending_review").orderBy("submittedAt", "asc").limit(50).get();
+      // Avoid requiring a composite Firestore index for the review queue.
+      const snap = await db.collection("marketAgeVerificationRequests")
+        .where("status", "==", "pending_review").limit(250).get();
+      const orderedDocs = [...snap.docs].sort((a, b) =>
+        (a.data().submittedAt?.toMillis?.() || 0) - (b.data().submittedAt?.toMillis?.() || 0)
+      ).slice(0, 50);
       const now = Math.floor(Date.now() / 1000);
-      const requests = snap.docs.map(doc => {
+      const requests = orderedDocs.map(doc => {
         const d = doc.data(), e = d.evidence || {};
         const url = item => item?.publicId ? cloudinary.utils.private_download_url(item.publicId, item.format, {
           resource_type: "image", type: "authenticated", expires_at: now + 60
         }) : null;
-        return { uid: doc.id, submittedAt: d.submittedAt?.toDate ? d.submittedAt.toDate().toISOString() : null,
-          identityDocumentUrl: url(e.identity_document), selfieUrl: url(e.selfie) };
+        return {
+          uid: doc.id,
+          submittedAt: d.submittedAt?.toDate ? d.submittedAt.toDate().toISOString() : null,
+          identityDocumentUrl: url(e.identity_document),
+          selfieUrl: url(e.selfie)
+        };
       });
       return json(200, { requests });
     }
@@ -43,9 +53,11 @@ exports.handler = async event => {
         marketAgeVerificationMethod: "manual_document_and_selfie_review",
         marketAgeVerificationProvider: null
       });
-      tx.update(requestRef, { status: approved ? "approved" : "rejected", reviewNote: reason,
+      tx.update(requestRef, {
+        status: approved ? "approved" : "rejected", reviewNote: reason,
         reviewedAt: admin.firestore.FieldValue.serverTimestamp(), reviewedBy: auth.uid,
-        evidence: {}, evidenceDeletedAt: admin.firestore.FieldValue.serverTimestamp() });
+        evidence: {}, evidenceDeletedAt: admin.firestore.FieldValue.serverTimestamp()
+      });
       tx.create(db.collection("marketAdminAudit").doc(), {
         actorUid: auth.uid, action: approved ? "market_age_manual_review_approved" : "market_age_manual_review_rejected",
         targetUid: uid, reason, createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -58,9 +70,8 @@ exports.handler = async event => {
     }
     return json(200, { ok: true, status: approved ? "approved" : "rejected" });
   } catch (error) {
-    if (error.code === "CLOUDINARY_CONFIG") return json(503, { error: "Secure evidence storage is not configured yet." });
+    if (error.message === "CLOUDINARY_CONFIG") return json(503, { error: "Secure evidence storage is not configured yet." });
     if (error.message === "REQUEST_NOT_PENDING") return json(409, { error: "This request is no longer awaiting review." });
-    console.error("Market age review failed:", error.message);
-    return json(500, { error: "Unable to review this age-verification request." });
+    return adminFailure(error, "Unable to review this age-verification request.");
   }
 };
