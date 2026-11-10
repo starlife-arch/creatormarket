@@ -1,10 +1,11 @@
 const { json, parseBody } = require("./_market-auth");
-const { loadEligibleUser, cleanText } = require("./_market-data");
+const { loadMarketUser, cleanText } = require("./_market-data");
 
 exports.handler = async event => {
   if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed" }, { Allow: "GET, POST" });
   try {
-    const context = await loadEligibleUser(event);
+    // Blocking is a normal account safety control, not access to creator media.
+    const context = await loadMarketUser(event);
     if (context.error) return context.error;
     const db = context.admin.firestore();
     const collection = db.collection("marketBlocks").doc(context.uid).collection("blocked");
