@@ -23,16 +23,6 @@
   status = 200
 
 [[redirects]]
-  from = "/verify-age"
-  to = "/verify-age.html"
-  status = 200
-
-[[redirects]]
-  from = "/age-review"
-  to = "/age-review.html"
-  status = 200
-
-[[redirects]]
   from = "/creator"
   to = "/creator.html"
   status = 200
