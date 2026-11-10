@@ -15,8 +15,6 @@ Independent application for `https://market.elysiandate.site`. Keep it separate 
 - `MARKET_ORIGIN`: exact Market origin, normally `https://market.elysiandate.site`.
 - `CLOUDINARY_URL`: dedicated Creator Market Cloudinary account URL (server-only).
 - `MARKET_CLOUDINARY_UPLOAD_PRESET`: name of the signed, authenticated-delivery upload preset.
-- `YOTI_AGE_API_KEY`: server-only Yoti Age Verification API key.
-- `YOTI_SDK_ID`: Yoti Age Verification SDK ID.
 
 Never put service credentials or session secrets in browser code.
 
