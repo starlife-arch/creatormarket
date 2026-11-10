@@ -1,4 +1,5 @@
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -47,7 +48,6 @@ exports.handler = async event => {
   } catch (error) {
     if (error.message === "WITHDRAWAL_NOT_PENDING") return json(409, { error: "This withdrawal is no longer pending." });
     if (["CREATOR_BALANCE_MISSING", "RESERVATION_MISMATCH"].includes(error.message)) return json(409, { error: "The creator earnings reservation does not match. Please investigate before changing this request." });
-    console.error("Market admin withdrawal review failed:", error.code || "UNKNOWN", error.message, error.stack);
-    return json(500, { error: "Unable to review this withdrawal." });
+    return adminFailure(error, "Unable to review this withdrawal.");
   }
 };
