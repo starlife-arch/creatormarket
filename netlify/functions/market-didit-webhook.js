@@ -30,7 +30,7 @@ exports.handler = async event => {
 
     const body = parseBody(event);
     if (!body || typeof body !== "object" || Array.isArray(body)) return json(400, { error: "Invalid webhook payload.", code: "INVALID_PAYLOAD" });
-    if (!verifyDiditSignature(body, event, secret)) return json(401, { error: "Invalid Didit signature. Check this destination's signing secret and timestamp.", code: "SIGNATURE_INVALID" });
+    if (!verifyDiditSignature(body, event, secret, process.env.DIDIT_WEBHOOK_SECRET_PREVIOUS || "")) return json(401, { error: "Invalid Didit signature. Check this destination's signing secret and timestamp.", code: "SIGNATURE_INVALID" });
 
     // Didit's signed test deliveries must never alter a real member's verification.
     if (getHeader(event, "x-didit-test-webhook").toLowerCase() === "true") return json(200, { ok: true, test: true });
