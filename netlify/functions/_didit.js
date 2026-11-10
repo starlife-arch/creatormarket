@@ -25,7 +25,7 @@ function verifyDiditSignature(body, event, secret, nowSeconds = Math.floor(Date.
   if (!secret) return false;
   const timestamp = header(event, "x-timestamp");
   const signature = header(event, "x-signature-v2");
-  if (!/^\\d+$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(signature)) return false;
+  if (!/^\d+$/.test(timestamp) || !/^[a-f0-9]{64}$/i.test(signature)) return false;
   if (Math.abs(nowSeconds - Number(timestamp)) > 300) return false;
   const expected = crypto.createHmac("sha256", secret)
     .update(canonicalDiditPayload(body), "utf8").digest();
