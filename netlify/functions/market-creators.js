@@ -1,10 +1,12 @@
 const { json } = require("./_market-auth");
-const { loadEligibleUser, cleanText } = require("./_market-data");
+const { loadMarketUser, cleanText } = require("./_market-data");
 
 exports.handler = async event => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" }, { Allow: "GET" });
   try {
-    const context = await loadEligibleUser(event);
+    // Browsing public creator profiles is a normal Market feature.
+    // The separate 18+ check belongs on restricted media/content access.
+    const context = await loadMarketUser(event);
     if (context.error) return context.error;
     const q = cleanText(event.queryStringParameters?.q || "", 40).toLowerCase().replace(/^@/, "");
     const db = context.admin.firestore();

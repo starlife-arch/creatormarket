@@ -1,10 +1,12 @@
 const { json } = require("./_market-auth");
-const { loadEligibleUser } = require("./_market-data");
+const { loadMarketUser } = require("./_market-data");
 
 exports.handler = async event => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" }, { Allow: "GET" });
   try {
-    const context = await loadEligibleUser(event);
+    // Purchase history is an account feature; opening the media still
+    // performs its own 18+ and entitlement checks.
+    const context = await loadMarketUser(event);
     if (context.error) return context.error;
     const snap = await context.admin.firestore().collection("marketEntitlements")
       .where("buyerUid", "==", context.uid).orderBy("createdAt", "desc").limit(100).get();
