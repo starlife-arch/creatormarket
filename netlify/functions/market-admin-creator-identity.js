@@ -16,19 +16,26 @@ exports.handler = async event => {
       const snap = await db.collection("marketCreatorIdentityRequests")
         .where("status", "==", "pending_review").orderBy("submittedAt", "asc").limit(50).get();
       const now = Math.floor(Date.now() / 1000);
-      const requests = snap.docs.map(doc => {
+      const requests = await Promise.all(snap.docs.map(async doc => {
         const d = doc.data(), evidence = d.evidence || {};
+        const [applicationSnap, userSnap] = await Promise.all([
+          db.collection("marketCreatorApplications").doc(doc.id).get(),
+          db.collection("users").doc(doc.id).get()
+        ]);
+        const application = applicationSnap.exists ? applicationSnap.data() || {} : {};
+        const user = userSnap.exists ? userSnap.data() || {} : {};
         const url = item => item?.publicId ? cloudinary.utils.private_download_url(item.publicId, item.format, {
           resource_type: "image", type: "authenticated", expires_at: now + 60
         }) : null;
         return {
           uid: doc.id,
-          username: d.username || null,
+          displayName: application.displayName || user.displayName || user.name || "Creator",
+          username: application.username || null,
           submittedAt: d.submittedAt?.toDate ? d.submittedAt.toDate().toISOString() : null,
           identityDocumentUrl: url(evidence.identity_document),
           selfieUrl: url(evidence.selfie)
         };
-      });
+      }));
       return json(200, { requests });
     }
 
