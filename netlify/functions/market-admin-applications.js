@@ -1,4 +1,5 @@
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, validUsername, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -69,7 +70,6 @@ exports.handler = async event => {
   } catch (error) {
     if (error.message === "USERNAME_TAKEN") return json(409, { error: "That username is already in use. Ask the creator to choose another." });
     if (error.message === "APPLICATION_NOT_PENDING") return json(409, { error: "This application is no longer pending." });
-    console.error("Market admin application review failed:", error.code || "UNKNOWN", error.message, error.stack);
-    return json(500, { error: "Unable to review this application." });
+    return adminFailure(error, "Unable to review this application.");
   }
 };
