@@ -1,4 +1,5 @@
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -52,7 +53,6 @@ exports.handler = async event => {
     if (error.message === "REPORT_NOT_PENDING") return json(409, { error: "This report has already been reviewed." });
     if (error.message === "ACTION_TARGET_MISMATCH") return json(400, { error: "That action does not match the reported item." });
     if (error.message === "TARGET_NOT_FOUND") return json(404, { error: "The reported item no longer exists." });
-    console.error("Market moderation failed:", error.code || "UNKNOWN", error.message, error.stack);
-    return json(500, { error: "Unable to complete the moderation action." });
+    return adminFailure(error, "Unable to complete the moderation action.");
   }
 };
