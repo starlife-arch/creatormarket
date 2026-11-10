@@ -26,7 +26,7 @@ Never put service credentials or session secrets in browser code.
 - Unique case-insensitive username reservation on approval.
 - Creator listing drafts with hourly timed viewing, day/week/month rental, and permanent access offers.
 - Signed Cloudinary private-media upload, upload metadata validation, and entitlement-checked 60-second viewing URLs.
-- Separate member-facing Yoti 18+ age-verification sessions and server-side result checks.
+- Member-facing manual 18+ evidence submission with private Cloudinary uploads, administrator review, audit records, and scheduled evidence cleanup. The flow is provider-neutral so an age-assurance provider can be integrated later.
 - Idempotent token purchase service with server-calculated expiry, wallet debit, buyer entitlement, 15% platform / 85% creator ledger split.
 - Creator balance, earnings history and withdrawal requests (minimum 3,000 creator-earning tokens).
 - Admin review for creator applications and withdrawals.
@@ -49,6 +49,8 @@ Never put service credentials or session secrets in browser code.
 - `marketBlocks/{uid}/blocked/{targetUid}`: member-specific creator blocks.
 - `marketReports/{reportId}`: reports awaiting moderation.
 - `marketAdminAudit/{auditId}`: admin moderation and payout audit events.
+- `marketAgeVerificationRequests/{uid}`: age-review status and private evidence references (evidence expires after seven days).
+- `marketAgeVerificationUploads/{uploadId}`: short-lived signed upload intents for private age evidence.
 - `users/{uid}`: shared account standing and server-managed verification flags.
 
 ## Age and creator identity verification
@@ -56,7 +58,7 @@ Market APIs deliberately fail closed unless the shared user document has:
 - `marketAgeVerified: true` — trusted 18+ verification completed.
 - `marketCreatorIdentityVerified: true` — creator identity verification completed.
 
-These values must only be set by a trusted verification provider result or authorized server-side admin review. Never let a browser client set either field. A self-entered birth date is not sufficient. Members can start and check a Yoti 18+ verification from Creator Studio; the backend stores the provider session reference and pass/fail result, not a copy of the identity document. Configure `YOTI_AGE_API_KEY` and `YOTI_SDK_ID` in the separate Market Netlify project's environment variables. The existing admin review screen remains available for controlled manual evidence review. Creator identity approval remains a separate admin-reviewed process.
+These values must only be set by a trusted verification provider result or authorized server-side admin review. Never let a browser client set either field. A self-entered birth date is not sufficient. Members can submit a government identity document image and a recent selfie through `/verify-age.html`. Files are uploaded directly to the dedicated Creator Market Cloudinary account using signed authenticated delivery; the browser never receives the Cloudinary API secret. Administrators review pending requests at `/age-review.html`. Evidence references are removed from Firestore after a decision and Cloudinary deletion is requested; a scheduled cleanup expires unreviewed evidence after seven days. Manual review does not provide automated document authenticity or liveness checks and must not be represented as a universal legal-compliance guarantee. The workflow is provider-neutral so a suitable age-assurance provider can be connected later. Creator identity approval remains a separate admin-reviewed process.
 
 ## Private media
 Creator media uses a dedicated Cloudinary account with authenticated delivery. Upload authorization is signed by the Market backend; media access checks the Market session, 18+ verification, creator/listing state, purchase or rental entitlement, expiry, and download permission before issuing a short-lived private URL. Configure the dedicated signed upload preset before enabling creator uploads.
