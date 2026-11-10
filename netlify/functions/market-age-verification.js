@@ -24,16 +24,77 @@ exports.handler = async event => {
       if (!snap.exists) return json(200, { verified: false, status: "not_started", message: "Start your age-verification request." });
       const d = snap.data() || {};
       return json(200, { verified: false, status: d.status || "awaiting_upload", requestId: d.requestId || null,
-        message: d.status === "pending_review" ? "Your evidence was submitted and is awaiting administrator review." :
-          d.status === "rejected" ? (d.reviewNote || "Your request was not approved. You may submit a new request.") :
-          "Upload a photo of your identity document and a selfie to request review." });
+        provider: d.provider || "manual", verificationUrl: d.verificationUrl || null,
+        message: d.status === "pending_review" ? (d.provider === "didit" ? "Didit has received your verification and it is awaiting a decision." : "Your evidence was submitted and is awaiting administrator review.") :
+          d.status === "didit_in_progress" ? "Your Didit verification is in progress. Continue in the secure verification window." :
+          d.status === "rejected" ? (d.reviewNote || "Your request was not approved. You may try again or use manual review.") :
+          d.status === "abandoned" ? "Your verification was not completed. You can start again." :
+          "Choose Didit verification or submit your ID and selfie for manual review." });
     }
 
     const body = parseBody(event);
     const action = cleanText(body.action, 32) || "start";
+    if (action === "didit-session") {
+      const apiKey = process.env.DIDIT_API_KEY;
+      const workflowId = process.env.DIDIT_WORKFLOW_ID;
+      const environment = String(process.env.DIDIT_ENVIRONMENT || "").toLowerCase();
+      if (!apiKey || !workflowId || !["live", "sandbox"].includes(environment)) {
+        return json(503, { error: "Didit is not configured yet. Please use manual age review or contact support." });
+      }
+      const old = await requestRef.get();
+      const oldData = old.exists ? (old.data() || {}) : {};
+      if (oldData.provider === "didit" && oldData.status === "didit_in_progress" &&
+          oldData.verificationUrl && oldData.diditSessionId) {
+        return json(200, { requestId: oldData.requestId, status: oldData.status,
+          verificationUrl: oldData.verificationUrl, reused: true });
+      }
+      if (oldData.status === "pending_review" ||
+          (oldData.status === "awaiting_upload" && Object.keys(oldData.evidence || {}).length)) {
+        return json(409, { error: "You already have a manual review request in progress. Finish it or wait for the review before switching methods." });
+      }
+      const requestId = oldData.requestId || crypto.randomUUID();
+      const response = await fetch("https://verification.didit.me/v3/session/", {
+        method: "POST",
+        headers: { "x-api-key": apiKey, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workflow_id: workflowId,
+          vendor_data: context.uid,
+          metadata: { market_request_id: requestId, source: "creator_market_age_verification" },
+          language: "en"
+        }),
+        signal: AbortSignal.timeout(15000)
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        console.error("Didit session creation failed:", response.status, result.detail || result.message || result.error || "provider error");
+        return json(502, { error: "Didit could not start verification. Please try again or use manual review." });
+      }
+      let verificationUrl;
+      try {
+        verificationUrl = new URL(result.url);
+        if (verificationUrl.protocol !== "https:" || verificationUrl.hostname !== "verify.didit.me" || !result.session_id) throw new Error("invalid response");
+      } catch (_) {
+        return json(502, { error: "Didit returned an invalid verification link. Please contact support." });
+      }
+      const sessionId = String(result.session_id);
+      await db.collection("marketDiditSessions").doc(sessionId).set({
+        uid: context.uid, requestId, workflowId, environment,
+        createdAt: context.admin.firestore.FieldValue.serverTimestamp(),
+        lastAppliedCreatedAt: 0
+      });
+      await requestRef.set({
+        uid: context.uid, requestId, provider: "didit", status: "didit_in_progress",
+        diditSessionId: sessionId, verificationUrl: verificationUrl.toString(), evidence: {},
+        createdAt: context.admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: context.admin.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      return json(200, { requestId, status: "didit_in_progress", verificationUrl: verificationUrl.toString() });
+    }
+
     if (action === "start") {
       const old = await requestRef.get();
       if (old.exists && ["awaiting_upload", "pending_review"].includes(old.data().status)) {
+        if (old.data().provider === "didit") return json(409, { error: "A Didit verification is already in progress. Complete it or wait for its result." });
         return json(200, { requestId: old.data().requestId, status: old.data().status, verificationUrl: "/verify-age.html", reused: true });
       }
       const requestId = crypto.randomUUID();
