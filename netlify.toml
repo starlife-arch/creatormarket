@@ -33,6 +33,16 @@
   status = 200
 
 [[redirects]]
+  from = "/verify-age"
+  to = "/verify-age.html"
+  status = 200
+
+[[redirects]]
+  from = "/age-review"
+  to = "/age-review.html"
+  status = 200
+
+[[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/:splat"
   status = 200
