@@ -1,4 +1,4 @@
-const cloudinary = require("cloudinary").v2;
+const { cloudinary } = require("./_cloudinary");
 const { json, parseBody, getAdmin } = require("./_market-auth");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
@@ -58,6 +58,7 @@ exports.handler = async event => {
     }
     return json(200, { ok: true, status: approved ? "approved" : "rejected" });
   } catch (error) {
+    if (error.code === "CLOUDINARY_CONFIG") return json(503, { error: "Secure evidence storage is not configured yet." });
     if (error.message === "REQUEST_NOT_PENDING") return json(409, { error: "This request is no longer awaiting review." });
     console.error("Market age review failed:", error.message);
     return json(500, { error: "Unable to review this age-verification request." });

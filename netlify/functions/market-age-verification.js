@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const cloudinary = require("cloudinary").v2;
+const { cloudinary } = require("./_cloudinary");
 const { json, parseBody, originAllowed } = require("./_market-auth");
 const { loadMarketUser, cleanText } = require("./_market-data");
 

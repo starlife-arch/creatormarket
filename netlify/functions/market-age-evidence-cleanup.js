@@ -1,11 +1,15 @@
-const cloudinary = require("cloudinary").v2;
+const { cloudinary } = require("./_cloudinary");
 const { getAdmin } = require("./_market-auth");
 
 exports.config = { schedule: "0 3 * * *" };
 
 exports.handler = async () => {
   const admin = getAdmin(), db = admin.firestore();
-  cloudinary.config({ secure: true });
+  try { cloudinary.config({ secure: true }); }
+  catch (error) {
+    if (error.code === "CLOUDINARY_CONFIG") return { statusCode: 503, body: JSON.stringify({ ok: false, error: "Secure evidence storage is not configured yet." }) };
+    throw error;
+  }
   const now = admin.firestore.Timestamp.now();
   const expired = await db.collection("marketAgeVerificationRequests")
     .where("evidenceExpiresAt", "<=", now).limit(100).get();
