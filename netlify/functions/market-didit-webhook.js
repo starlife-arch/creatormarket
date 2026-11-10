@@ -17,7 +17,9 @@ exports.handler = async event => {
     const secret = process.env.DIDIT_WEBHOOK_SECRET;
     const workflowId = process.env.DIDIT_WORKFLOW_ID;
     const environment = String(process.env.DIDIT_ENVIRONMENT || "").toLowerCase();
-    if (!secret || !workflowId || !["live", "sandbox"].includes(environment)) {
+    const workflowType = String(process.env.DIDIT_WORKFLOW_TYPE || "").toLowerCase();
+    const minimumAge = String(process.env.DIDIT_MINIMUM_AGE || "");
+    if (!secret || !workflowId || !["live", "sandbox"].includes(environment) || workflowType !== "adaptive_age_verification" || minimumAge !== "18") {
       return json(503, { error: "Didit webhook is not configured." });
     }
 
