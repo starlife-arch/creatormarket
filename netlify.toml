@@ -8,6 +8,11 @@
   NODE_VERSION = "20"
 
 [[redirects]]
+  from = "/favicon.ico"
+  to = "/favicon.svg"
+  status = 301
+
+[[redirects]]
   from = "/member"
   to = "/member.html"
   status = 200
