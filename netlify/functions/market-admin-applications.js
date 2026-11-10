@@ -13,10 +13,18 @@ exports.handler = async event => {
     const apps = db.collection("marketCreatorApplications");
     if (event.httpMethod === "GET") {
       const snap = await apps.where("status", "==", "pending").orderBy("createdAt", "asc").limit(50).get();
-      return json(200, { applications: snap.docs.map(doc => {
+      const applications = await Promise.all(snap.docs.map(async doc => {
         const d = doc.data();
-        return { uid: doc.id, username: d.username, displayName: d.displayName, bio: d.bio, category: d.category, createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null };
-      })});
+        const userSnap = await db.collection("users").doc(doc.id).get();
+        const user = userSnap.exists ? userSnap.data() || {} : {};
+        return {
+          uid: doc.id, username: d.username, displayName: d.displayName, bio: d.bio,
+          category: d.category, createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null,
+          marketAgeVerified: user.marketAgeVerified === true,
+          marketCreatorIdentityVerified: user.marketCreatorIdentityVerified === true
+        };
+      }));
+      return json(200, { applications });
     }
     const body = parseBody(event);
     const uid = cleanText(body.uid, 128);
