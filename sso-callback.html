@@ -44,7 +44,7 @@
         });
         const result = await response.json().catch(() => ({}));
         if (!response.ok || !result.ok) throw new Error(result.error || "Sign-in could not be completed.");
-        window.location.replace("/member.html");
+        const destination = result.redirectTo === "/admin" ? "/admin" : "/member";\n        window.location.replace(destination);
       } catch (error) {
         status.textContent = error.message || "Sign-in could not be completed. Start again from DateVault.";
         fallback.hidden = false;
