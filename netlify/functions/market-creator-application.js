@@ -13,6 +13,8 @@ exports.handler = async event => {
     const displayName = cleanText(body.displayName, 60);
     const bio = cleanText(body.bio, 500);
     const category = cleanText(body.category, 40);
+    const allowedCategories = new Set(["Adult Content", "Mature Content", "Explicit Content"]);
+    if (!allowedCategories.has(category)) return json(400, { error: "Choose Adult Content, Mature Content, or Explicit Content." });
     if (!validUsername(username)) return json(400, { error: "Username must be 3–30 characters, use letters, numbers or underscores, and cannot start or end with an underscore." });
     if (!displayName) return json(400, { error: "Enter a public display name." });
     if (bio.length < 20) return json(400, { error: "Please write a short creator bio of at least 20 characters." });
@@ -27,7 +29,7 @@ exports.handler = async event => {
     const handle = await handleRef.get();
     if (handle.exists && handle.data().uid !== context.uid) return json(409, { error: "That creator username is already taken." });
     await applicationRef.set({
-      uid: context.uid, username, displayName, bio, category: category || "Other",
+      uid: context.uid, username, displayName, bio, category,
       status: "pending", createdAt: context.admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: context.admin.firestore.FieldValue.serverTimestamp()
     });
