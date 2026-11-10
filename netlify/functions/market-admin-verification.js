@@ -1,5 +1,6 @@
 const { json } = require("./_market-auth");
-const { getMarketUser, isAdmin, getAdmin } = require("./_market-data");
+const { getAdmin } = require("./_market-auth");
+const { getMarketUser, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed." }, { Allow: "POST" });
