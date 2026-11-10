@@ -1,6 +1,6 @@
 const crypto = require("crypto");
 const { json, parseBody } = require("./_market-auth");
-const { loadEligibleUser, cleanText } = require("./_market-data");
+const { loadMarketUser, loadEligibleUser, cleanText } = require("./_market-data");
 
 function normalizeOffers(input) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 3) throw new Error("Add between one and three access offers.");
@@ -24,7 +24,9 @@ function normalizeOffers(input) {
 exports.handler = async event => {
   if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed" }, { Allow: "GET, POST" });
   try {
-    const context = await loadEligibleUser(event);
+    // Listing metadata is browsable by signed-in Market members. Restricted media
+    // is still protected by market-media-access; publishing remains age + identity gated.
+    const context = event.httpMethod === "GET" ? await loadMarketUser(event) : await loadEligibleUser(event);
     if (context.error) return context.error;
     const db = context.admin.firestore();
     if (event.httpMethod === "GET") {
