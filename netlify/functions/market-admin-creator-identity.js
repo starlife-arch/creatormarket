@@ -1,5 +1,6 @@
 const { cloudinary } = require("./_cloudinary");
 const { json, parseBody, getAdmin } = require("./_market-auth");
+const { adminFailure } = require("./_market-admin-error");
 const { getMarketUser, cleanText, isAdmin } = require("./_market-data");
 
 exports.handler = async event => {
@@ -91,7 +92,6 @@ exports.handler = async event => {
     if (error.message === "IDENTITY_REVIEW_NOT_PENDING") return json(409, { error: "This request has already been reviewed." });
     if (error.message === "IDENTITY_USER_NOT_FOUND") return json(404, { error: "Creator account not found." });
     if (error.code === "CLOUDINARY_CONFIG") return json(503, { error: "Secure evidence storage is not configured yet." });
-    console.error("Market creator identity review failed:", error.code || "UNKNOWN", error.message, error.stack);
-    return json(500, { error: "Unable to review creator identity evidence." });
+    return adminFailure(error, "Unable to review creator identity evidence.");
   }
 };
