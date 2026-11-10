@@ -10,8 +10,9 @@ exports.handler = async event => {
     const adminSnap = await db.collection("users").doc(auth.uid).get();
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
     if (event.httpMethod === "GET") {
-      const snap = await db.collection("marketReports").where("status", "==", "pending").orderBy("createdAt", "asc").limit(100).get();
-      return json(200, { reports: snap.docs.map(doc => {
+      const snap = await db.collection("marketReports").where("status", "==", "pending").limit(250).get();
+      const orderedDocs = [...snap.docs].sort((a,b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0)).slice(0,100);
+      return json(200, { reports: orderedDocs.map(doc => {
         const d = doc.data();
         return { id: doc.id, reporterUid: d.reporterUid, targetType: d.targetType, targetId: d.targetId, targetUid: d.targetUid, reason: d.reason, createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null };
       })});
@@ -51,7 +52,7 @@ exports.handler = async event => {
     if (error.message === "REPORT_NOT_PENDING") return json(409, { error: "This report has already been reviewed." });
     if (error.message === "ACTION_TARGET_MISMATCH") return json(400, { error: "That action does not match the reported item." });
     if (error.message === "TARGET_NOT_FOUND") return json(404, { error: "The reported item no longer exists." });
-    console.error("Market moderation failed:", error.message);
+    console.error("Market moderation failed:", error.code || "UNKNOWN", error.message, error.stack);
     return json(500, { error: "Unable to complete the moderation action." });
   }
 };
