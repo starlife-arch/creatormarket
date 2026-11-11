@@ -39,8 +39,9 @@ exports.handler = async event => {
     if (!apiKey || !gatewayUrl) return json(503, { error: "Secure video playback is not configured yet." });
     const db = context.admin.firestore();
     const listingSnap = await db.collection("marketListings").doc(listingId).get();
-    if (!listingSnap.exists || listingSnap.data().status !== "published") return json(404, { error: "This content is unavailable." });
+    if (!listingSnap.exists) return json(404, { error: "This content is unavailable." });
     const listing = listingSnap.data();
+    if (previewOnly && listing.status !== "published") return json(404, { error: "This content is unavailable." });
     if (listing.mediaProvider !== "api_video" || !listing.videoId) return json(409, { error: "This listing is not yet using secure api.video playback." });
     const creatorSnap = await db.collection("marketCreators").doc(listing.creatorUid).get();
     if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "This content is unavailable." });

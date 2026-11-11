@@ -4,14 +4,18 @@ const { adminFailure } = require("./_market-admin-error");
 
 exports.handler = async event => {
   if (!["GET", "POST"].includes(event.httpMethod)) return json(405, { error: "Method not allowed" }, { Allow: "GET, POST" });
+  let stage = "request";
   try {
+    stage = "session-authentication";
     const auth = getMarketUser(event);
     if (auth.error) return auth.error;
+    stage = "admin-permission-check";
     const admin = getAdmin(), db = admin.firestore();
     const adminSnap = await db.collection("users").doc(auth.uid).get();
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
 
     if (event.httpMethod === "GET") {
+      stage = "directory-firestore-queries";
       const [usersSnap, creatorsSnap, listingsSnap, balancesSnap, entitlementsSnap, purchasesSnap] = await Promise.all([
         db.collection("users").limit(500).get(),
         db.collection("marketCreators").limit(300).get(),
@@ -20,11 +24,13 @@ exports.handler = async event => {
         db.collection("marketEntitlements").limit(1000).get(),
         db.collection("marketPurchases").limit(1000).get()
       ]);
+      stage = "directory-response-build";
       const balances = new Map(balancesSnap.docs.map(d => [d.id, d.data()]));
       const creators = creatorsSnap.docs.map(doc => {
         const d = doc.data(), b = balances.get(doc.id) || {};
         return { uid: doc.id, username: d.username || "", displayName: d.displayName || d.username || "Creator",
           status: d.status || "unknown", category: d.category || "", verified: d.verified === true,
+          avatarUrl: d.avatarPreviewUrl || d.avatarUrl || "",
           availableTokens: Number(b.availableTokens || 0), reservedTokens: Number(b.reservedTokens || 0),
           lifetimeEarnedTokens: Number(b.lifetimeEarnedTokens || 0), lifetimeWithdrawnTokens: Number(b.lifetimeWithdrawnTokens || 0) };
       });
@@ -49,11 +55,12 @@ exports.handler = async event => {
         return { id: doc.id, title: d.title || "Untitled listing", description: d.description || "",
           status: d.status || "unknown", mediaKind: d.mediaKind || (d.mediaResourceType === "video" ? "video" : "image"),
           mediaProvider: d.mediaProvider || "", creatorUid: d.creatorUid || "", creatorUsername: creator.username || d.creatorUsername || "",
-          creatorName: creator.displayName || "", offers: (d.offers || []).map(o => ({ label: o.label || o.type, priceTokens: Number(o.priceTokens || 0) })) };
-      }).sort((a,b) => a.title.localeCompare(b.title));
+          creatorName: creator.displayName || "", creatorAvatarUrl: creator.avatarUrl || "", offers: (Array.isArray(d.offers) ? d.offers : []).map(o => ({ label: String(o?.label || o?.type || "Access"), priceTokens: Number(o?.priceTokens || 0) })) };
+      }).sort((a,b) => String(a.title || "").localeCompare(String(b.title || "")));
       return json(200, { users, creators, listings });
     }
 
+    stage = "moderation-action";
     const body = parseBody(event), action = cleanText(body.action, 40);
     const targetId = cleanText(body.targetId, 128), note = cleanText(body.note, 500);
     if (!targetId || note.length < 8) return json(400, { error: "Select a target and enter an audit note of at least 8 characters." });
@@ -77,6 +84,7 @@ exports.handler = async event => {
     }
     return json(400, { error: "Unsupported Market administration action." });
   } catch (error) {
-    return adminFailure(error, "Unable to load or update Market operations.");
+    console.error("Market admin directory stage failed:", stage, error?.message || error, error?.stack || "");
+    return adminFailure(error, "Unable to load Market operations (" + stage + ").");
   }
 };
