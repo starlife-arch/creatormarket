@@ -13,7 +13,7 @@ exports.handler = async event => {
     const db = context.admin.firestore(), intentRef = db.collection("marketVideoUploadIntents").doc(uploadId);
     const listingRef = db.collection("marketListings").doc(listingId);
     const [intentSnap, listingSnap] = await Promise.all([intentRef.get(), listingRef.get()]);
-    if (!intentSnap.exists || !listingSnap.exists || listingSnap.data().creatorUid !== context.uid) return json(404, { error: "Video upload or creator listing was not found." });
+    if (!intentSnap.exists || !listingSnap.exists || listingSnap.data().creatorUid !== context.uid || listingSnap.data().videoUploadId !== uploadId || listingSnap.data().videoId !== intentSnap.data().videoId) return json(404, { error: "Video upload or creator listing was not found." });
     const intent = intentSnap.data();
     const expiresAt = intent.expiresAt?.toDate ? intent.expiresAt.toDate().getTime() : 0;
     if (intent.uid !== context.uid || intent.listingId !== listingId || expiresAt <= Date.now()) return json(403, { error: "This video upload authorization has expired." });
@@ -40,7 +40,7 @@ exports.handler = async event => {
     await db.runTransaction(async tx => {
       const [freshIntent, freshListing] = await Promise.all([tx.get(intentRef), tx.get(listingRef)]);
       if (!freshIntent.exists || freshIntent.data().uid !== context.uid || freshIntent.data().status === "expired" ||
-          !freshListing.exists || freshListing.data().creatorUid !== context.uid ||
+          !freshListing.exists || freshListing.data().creatorUid !== context.uid || freshListing.data().videoUploadId !== uploadId || freshListing.data().videoId !== intent.videoId ||
           (freshListing.data().status !== "draft" && freshListing.data().status !== "processing")) {
         throw new Error("VIDEO_UPLOAD_NOT_ACTIVE");
       }
