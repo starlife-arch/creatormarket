@@ -1,5 +1,5 @@
-const { json, parseBody, getAdmin, getMarketUser } = require("./_market-auth");
-const { cleanText, isAdmin } = require("./_market-data");
+const { json, parseBody, getAdmin } = require("./_market-auth");
+const { cleanText, isAdmin, getMarketUser } = require("./_market-data");
 const { adminFailure } = require("./_market-admin-error");
 
 exports.handler = async event => {
@@ -65,6 +65,13 @@ exports.handler = async event => {
     const targetId = cleanText(body.targetId, 128), note = cleanText(body.note, 500);
     if (!targetId || note.length < 8) return json(400, { error: "Select a target and enter an audit note of at least 8 characters." });
     const now = admin.firestore.FieldValue.serverTimestamp();
+    if (action === "ban_member" || action === "unban_member") {
+      const ref = db.collection("users").doc(targetId), snap = await ref.get();
+      if (!snap.exists) return json(404, { error: "Market member not found." });
+      await ref.update({ marketBanned: action === "ban_member", marketModerationNote: note, marketModeratedAt: now, marketModeratedBy: auth.uid });
+      await db.collection("marketAdminAudit").add({ actorUid: auth.uid, action, targetUid: targetId, reason: note, createdAt: now });
+      return json(200, { ok: true, banned: action === "ban_member" });
+    }
     if (action === "ban_creator" || action === "unban_creator") {
       const ref = db.collection("marketCreators").doc(targetId);
       const snap = await ref.get();
@@ -73,6 +80,13 @@ exports.handler = async event => {
       await ref.update({ status, moderationNote: note, updatedAt: now });
       await db.collection("marketAdminAudit").add({ actorUid: auth.uid, action, targetUid: targetId, reason: note, createdAt: now });
       return json(200, { ok: true, status });
+    }
+    if (action === "delete_creator") {
+      const ref = db.collection("marketCreators").doc(targetId), snap = await ref.get();
+      if (!snap.exists) return json(404, { error: "Creator profile not found." });
+      await ref.update({ status: "deleted", moderationNote: note, updatedAt: now });
+      await db.collection("marketAdminAudit").add({ actorUid: auth.uid, action, targetUid: targetId, reason: note, createdAt: now });
+      return json(200, { ok: true, status: "deleted" });
     }
     if (action === "hide_listing" || action === "restore_listing" || action === "delete_listing") {
       const ref = db.collection("marketListings").doc(targetId), snap = await ref.get();

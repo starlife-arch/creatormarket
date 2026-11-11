@@ -12,7 +12,6 @@ exports.handler = async event => {
     if (!listing.exists) return json(404, { error: "This content is unavailable." });
     const data = listing.data(), creatorProfile = await db.collection("marketCreators").doc(data.creatorUid).get();
     if (data.mediaResourceType === "video" && data.mediaProvider !== "api_video") return json(410, { error: "This older video must be re-uploaded through secure api.video playback before it can be watched." });
-    if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "This content is unavailable." });
     const isOwner = data.creatorUid === context.uid;
     let entitlement = null;
     if (!isOwner) {
@@ -23,9 +22,8 @@ exports.handler = async event => {
         return !exp || exp > now;
       });
       if (!entitlement) return json(403, { error: "Purchase an access offer to view this content." });
-    }
-    // Unpublishing stops new purchases but does not revoke an existing buyer's
-    // valid entitlement. Rental expiry is still checked above.
+    } else if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "This content is unavailable." });
+    // Pausing, hiding or soft-deleting a listing does not revoke an already-paid entitlement.
     if (!data.mediaPublicId) return json(404, { error: "This purchased image is no longer available. Contact Market support." });
     const downloadAllowed = isOwner ? false : data.downloadAllowed === true && entitlement?.downloadAllowed === true;
     const expiresAt = Math.floor(Date.now() / 1000) + 60;
