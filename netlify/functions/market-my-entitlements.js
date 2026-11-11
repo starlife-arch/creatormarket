@@ -19,10 +19,17 @@ exports.handler = async event => {
     const entitlements = (await Promise.all(snap.docs.map(async doc => {
       const d = doc.data(), expires = dateValue(d.expiresAt), created = dateValue(d.createdAt);
       const started = dateValue(d.startedAt) || created;
-      const listingSnap = d.listingId ? await context.admin.firestore().collection("marketListings").doc(d.listingId).get() : null;
+      const [listingSnap, creatorSnap] = await Promise.all([
+        d.listingId ? context.admin.firestore().collection("marketListings").doc(d.listingId).get() : null,
+        d.creatorUid ? context.admin.firestore().collection("marketCreators").doc(d.creatorUid).get() : null
+      ]);
       const listing = listingSnap?.exists ? listingSnap.data() : {};
+      const creator = creatorSnap?.exists ? creatorSnap.data() : {};
       return { id: doc.id, listingId: d.listingId, creatorUid: d.creatorUid,
-        creatorUsername: d.creatorUsername || "", listingTitle: d.listingTitle || listing.title || "Creator content",
+        creatorUsername: d.creatorUsername || creator.username || listing.creatorUsername || "",
+        creatorName: creator.displayName || creator.username || d.creatorUsername || "Creator",
+        creatorAvatarUrl: creator.avatarPreviewUrl || creator.avatarUrl || "",
+        listingTitle: d.listingTitle || listing.title || "Creator content",
         offerType: d.offerType || "rental", offerLabel: d.offerLabel || "",
         offerUnit: d.offerUnit || null, offerValue: Number.isFinite(Number(d.offerValue)) ? Number(d.offerValue) : null,
         priceTokens: Number(d.priceTokens || 0), status: d.status,
