@@ -35,7 +35,7 @@ exports.handler = async event => {
     await db.runTransaction(async tx => {
       const [prior, listingSnap, buyerSnap] = await Promise.all([tx.get(purchaseRef), tx.get(listingRef), tx.get(buyerRef)]);
       if (prior.exists) { response = { ok: true, alreadyProcessed: true, purchaseId, entitlementId: prior.data().entitlementId }; return; }
-      if (!listingSnap.exists || listingSnap.data().status !== "published" || !listingSnap.data().mediaObjectPath) throw new Error("LISTING_UNAVAILABLE");
+      if (!listingSnap.exists || listingSnap.data().status !== "published" || !((listingSnap.data().mediaProvider === "api_video" && listingSnap.data().videoId) || (listingSnap.data().mediaPublicId && listingSnap.data().mediaResourceType !== "video"))) throw new Error("LISTING_UNAVAILABLE");
       if (!buyerSnap.exists) throw new Error("ACCOUNT_UNAVAILABLE");
       const listing = listingSnap.data();
       if (listing.creatorUid === context.uid) throw new Error("OWN_CONTENT");
@@ -73,6 +73,11 @@ exports.handler = async event => {
         expiresAt: expiresAt ? context.admin.firestore.Timestamp.fromDate(expiresAt) : null,
         downloadAllowed: listing.downloadAllowed === true, status: "active",
         purchaseId, createdAt: context.admin.firestore.FieldValue.serverTimestamp()
+      });
+      tx.create(buyerRef.collection("marketEntitlements").doc(entitlementId), {
+        listingId, purchaseId, expiresAt: expiresAt ? context.admin.firestore.Timestamp.fromDate(expiresAt) : null,
+        downloadAllowed: listing.downloadAllowed === true, status: "active",
+        createdAt: context.admin.firestore.FieldValue.serverTimestamp()
       });
       tx.set(walletTxRef, { type: "market_purchase", amount: gross, listingId, creatorUid: listing.creatorUid, note: "Creator Market purchase", status: "completed", createdAt: context.admin.firestore.FieldValue.serverTimestamp() });
       tx.set(creatorLedgerRef, { type: "sale_credit", purchaseId, listingId, buyerUid: context.uid, grossTokens: gross, platformFeeTokens: platformFee, netTokens: creatorNet, createdAt: context.admin.firestore.FieldValue.serverTimestamp() });

@@ -11,6 +11,7 @@ exports.handler = async event => {
     const db = context.admin.firestore(), listing = await db.collection("marketListings").doc(listingId).get();
     if (!listing.exists || listing.data().status !== "published" || !listing.data().mediaPublicId) return json(404, { error: "This content is unavailable." });
     const data = listing.data(), creatorProfile = await db.collection("marketCreators").doc(data.creatorUid).get();
+    if (data.mediaResourceType === "video" && data.mediaProvider !== "api_video") return json(410, { error: "This older video must be re-uploaded through secure api.video playback before it can be watched." });
     if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "This content is unavailable." });
     const isOwner = data.creatorUid === context.uid;
     let entitlement = null;

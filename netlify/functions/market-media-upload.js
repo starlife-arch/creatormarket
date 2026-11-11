@@ -7,8 +7,6 @@ const TYPES = new Map([
   ["image/jpeg", { resourceType: "image", maxBytes: 30 * 1024 * 1024 }],
   ["image/png", { resourceType: "image", maxBytes: 30 * 1024 * 1024 }],
   ["image/webp", { resourceType: "image", maxBytes: 30 * 1024 * 1024 }],
-  ["video/mp4", { resourceType: "video", maxBytes: 500 * 1024 * 1024 }],
-  ["video/webm", { resourceType: "video", maxBytes: 500 * 1024 * 1024 }]
 ]);
 function cloudinaryConfig() {
   cloudinary.config({ secure: true });
@@ -27,7 +25,7 @@ exports.handler = async event => {
     const body = parseBody(event), listingId = cleanText(body.listingId, 128);
     const contentType = cleanText(body.contentType, 80).toLowerCase(), sizeBytes = Math.floor(Number(body.sizeBytes));
     const media = TYPES.get(contentType);
-    if (!listingId || !media || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > media.maxBytes) return json(400, { error: "Unsupported media type or file size. Images may be up to 30 MB and MP4/WebM videos up to 500 MB." });
+    if (!listingId || !media || !Number.isSafeInteger(sizeBytes) || sizeBytes < 1 || sizeBytes > media.maxBytes) return json(400, { error: "Unsupported media type or file size. Images may be up to 30 MB. Video uploads must use the private api.video upload flow." });
     const uploadPreset = process.env.MARKET_CLOUDINARY_UPLOAD_PRESET;
     if (!uploadPreset) return json(503, { error: "Private Market media upload is not configured yet." });
     const config = cloudinaryConfig(), db = context.admin.firestore();
