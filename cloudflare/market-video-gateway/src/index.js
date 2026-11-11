@@ -38,6 +38,46 @@ function allowedProviderUrl(raw, claims) {
   url.searchParams.set("avh", claims.sessionToken);
   return url;
 }
+async function handleUpload(request, env) {
+  if (request.method !== "POST") return error(405, "Method not allowed");
+  if (!env.MARKET_VIDEO_GATEWAY_SECRET || !env.API_VIDEO_API_KEY) return error(503, "Video upload gateway is not configured");
+  const incoming = new URL(request.url);
+  let claims;
+  try {
+    claims = await decryptTicket(incoming.searchParams.get("ticket"), env.MARKET_VIDEO_GATEWAY_SECRET);
+    if (claims.aud !== incoming.host || claims.scope !== "upload" || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This upload authorization has expired");
+    if (!claims.videoId || !claims.listingId || !claims.sub) return error(403, "Invalid upload authorization");
+    if (!/^[A-Za-z0-9_-]{6,80}$/.test(claims.videoId)) return error(403, "Invalid video reference");
+  } catch (_) { return error(403, "Invalid upload authorization"); }
+  const contentRange = request.headers.get("content-range") || "";
+  if (!/^bytes \d+-\d+\/\d+$/.test(contentRange)) return error(400, "A valid byte Content-Range is required");
+  const match = contentRange.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
+  const start = Number(match[1]), end = Number(match[2]), total = Number(match[3]);
+  if (end < start || total < end + 1 || end - start + 1 > 55 * 1024 * 1024) return error(400, "Upload chunks must be no larger than 55 MiB");
+  const contentType = request.headers.get("content-type") || "";
+  if (!/^multipart\/form-data;\s*boundary=/i.test(contentType)) return error(400, "Upload must use multipart form data");
+  const headers = new Headers({
+    Authorization: "Basic " + btoa(env.API_VIDEO_API_KEY + ":"),
+    "Content-Type": contentType,
+    "Content-Range": contentRange,
+    Accept: "application/json"
+  });
+  let upstream;
+  try {
+    upstream = await fetch("https://ws.api.video/videos/" + encodeURIComponent(claims.videoId) + "/source", {
+      method: "POST", headers, body: request.body
+    });
+  } catch (_) { return error(502, "api.video upload endpoint is temporarily unavailable"); }
+  const responseBody = await upstream.text();
+  return new Response(responseBody, {
+    status: upstream.status,
+    headers: {
+      "Content-Type": upstream.headers.get("content-type") || "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    }
+  });
+}
 async function handle(request, env) {
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "Method not allowed");
   if (!env.MARKET_VIDEO_GATEWAY_SECRET) return error(503, "Video gateway is not configured");
