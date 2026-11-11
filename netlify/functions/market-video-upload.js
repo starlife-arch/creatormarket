@@ -33,7 +33,7 @@ exports.handler = async event => {
       headers: { Authorization: auth(apiKey), "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({
         title: listing.title, description: listing.description,
-        public: false, mp4Support: false
+        public: false, mp4Support: listing.downloadAllowed === true
       }),
       signal: AbortSignal.timeout(15000)
     });
