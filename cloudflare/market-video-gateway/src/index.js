@@ -57,8 +57,9 @@ async function handleUpload(request, env) {
     const chunkBytes = end - start + 1;
     if (total !== claims.sizeBytes || end < start || total < end + 1 || chunkBytes < 5 * 1024 * 1024 || chunkBytes > 55 * 1024 * 1024) return error(400, "Progressive upload chunk does not match the authorized file size or chunk limits");
   } else {
-    const contentLength = Number(request.headers.get("content-length") || 0);
-    if (claims.sizeBytes > 90 * 1024 * 1024 || !Number.isSafeInteger(contentLength) || contentLength < claims.sizeBytes || contentLength > 95 * 1024 * 1024) return error(413, "Single uploads must be 90 MiB or smaller; larger videos must be sent in 5–55 MiB chunks");
+    const contentLengthHeader = request.headers.get("content-length");
+    const contentLength = contentLengthHeader ? Number(contentLengthHeader) : null;
+    if (claims.sizeBytes > 90 * 1024 * 1024 || (contentLength !== null && (!Number.isSafeInteger(contentLength) || contentLength > 95 * 1024 * 1024))) return error(413, "Single uploads must be 90 MiB or smaller; larger videos must be sent in 5–55 MiB chunks");
   }
   const contentType = request.headers.get("content-type") || "";
   if (!/^multipart\/form-data;\s*boundary=/i.test(contentType)) return error(400, "Upload must use multipart form data");
