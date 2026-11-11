@@ -73,15 +73,34 @@ function error(status, message) {
 function makeGatewayUrl(requestUrl, ticket, providerUrl) {
   const url = new URL(requestUrl);
   url.pathname = "/video-gateway";
-  url.search = "?ticket=" + encodeURIComponent(ticket) + "&path=" + encodeURIComponent(encodeBase64Url(providerUrl.pathname + providerUrl.search));
+  // Keep the validated CDN host as well as the path; api.video may redirect VOD assets.
+  url.search = "?ticket=" + encodeURIComponent(ticket) + "&path=" + encodeURIComponent(encodeBase64Url(providerUrl.toString()));
   return url.toString();
 }
 function allowedProviderUrl(raw, claims) {
   const url = new URL(raw);
   const prefix = "/vod/" + claims.videoId + "/token/" + claims.privateToken + "/";
-  if (url.protocol !== "https:" || url.hostname !== "vod.api.video" || !url.pathname.startsWith(prefix)) throw new Error("provider path rejected");
+  const allowedHosts = new Set(["vod.api.video", "cdn.api.video"]);
+  if (url.protocol !== "https:" || !allowedHosts.has(url.hostname) || !url.pathname.startsWith(prefix)) throw new Error("provider path rejected");
+  url.username = ""; url.password = ""; url.hash = "";
   url.searchParams.set("avh", claims.sessionToken);
   return url;
+}
+async function fetchProviderAsset(url, request, claims) {
+  let current = allowedProviderUrl(url.toString(), claims);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const headers = new Headers();
+    for (const name of ["range", "if-range", "if-none-match"]) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
+    const response = await fetch(current.toString(), { method: request.method, headers, redirect: "manual" });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return { response, url: current };
+    const location = response.headers.get("location");
+    if (!location) throw new Error("provider redirect omitted location");
+    current = allowedProviderUrl(new URL(location, current).toString(), claims);
+  }
+  throw new Error("too many provider redirects");
 }
 async function handleUpload(request, env) {
   if (request.method !== "POST") return error(405, "Method not allowed");
@@ -143,7 +162,7 @@ async function handle(request, env) {
     if (claims.aud !== incoming.host || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This rental has expired");
     if (!claims.videoId || !claims.privateToken || !claims.sessionToken || !claims.listingId || !claims.sessionJti || !["preview", "playback", "download"].includes(claims.scope)) return error(403, "Invalid playback authorization");
     const path = new TextDecoder().decode(decodeBase64Url(incoming.searchParams.get("path") || ""));
-    providerUrl = allowedProviderUrl("https://vod.api.video" + path, claims);
+    providerUrl = allowedProviderUrl(path.startsWith("https://") ? path : "https://vod.api.video" + path, claims);
     if (claims.scope === "preview" && !providerUrl.pathname.endsWith("/thumbnail.jpg")) return error(403, "Preview access only");
     if (claims.scope === "playback" && !providerUrl.pathname.endsWith("/hls/manifest.m3u8") && !providerUrl.pathname.includes("/hls/")) return error(403, "HLS playback only");
     if (claims.scope === "download" && !providerUrl.pathname.endsWith("/mp4/source.mp4")) return error(403, "Download access only");
@@ -154,15 +173,15 @@ async function handle(request, env) {
   const entitlementCheck = await validateEntitlement(claims, env);
   if (!entitlementCheck.ok) return error(entitlementCheck.status, entitlementCheck.status === 503 ? "Market authorization service is unavailable" : "Your Market access is no longer active");
 
-  const headers = new Headers();
-  for (const name of ["range", "if-range", "if-none-match"]) {
-    const value = request.headers.get(name);
-    if (value) headers.set(name, value);
-  }
-  let upstream;
+  let upstream, finalProviderUrl;
   try {
-    upstream = await fetch(providerUrl.toString(), { method: request.method, headers, redirect: "error" });
-  } catch (_) { return error(502, "Video provider is temporarily unavailable"); }
+    const fetched = await fetchProviderAsset(providerUrl, request, claims);
+    upstream = fetched.response;
+    finalProviderUrl = fetched.url;
+  } catch (cause) {
+    console.error("Market video provider fetch failed:", cause?.message || "unknown error");
+    return error(502, "Video provider asset could not be reached");
+  }
   const responseHeaders = new Headers();
   for (const name of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
     const value = upstream.headers.get(name);
@@ -179,7 +198,7 @@ async function handle(request, env) {
     const rewritten = manifest.split(/\r?\n/).map(line => {
       const rewrite = raw => {
         try {
-          const resolved = new URL(raw, providerUrl);
+          const resolved = new URL(raw, finalProviderUrl);
           const safe = allowedProviderUrl(resolved.toString(), claims);
           return makeGatewayUrl(request.url, incoming.searchParams.get("ticket"), safe);
         } catch (_) { throw new Error("manifest URI rejected"); }
