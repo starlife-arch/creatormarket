@@ -14,7 +14,8 @@ async function viewContent(listingId){
   else if(node.canPlayType("application/vnd.apple.mpegurl"))node.src=vd.playbackUrl;
   else throw Error("This browser cannot play HLS video.");
   const stop=()=>{node.pause();node.removeAttribute("src");if(node._marketHls)node._marketHls.destroy();node.load();feedback.textContent="Your rental has expired. Purchase another access offer to watch again.";};
-  const delay=new Date(vd.expiresAt).getTime()-Date.now();if(delay<=0)stop();else node._expiryTimer=setTimeout(stop,delay);
+  const expiresAt=new Date(vd.expiresAt).getTime();const armExpiry=()=>{const remaining=expiresAt-Date.now();if(remaining<=0)stop();else node._expiryTimer=setTimeout(armExpiry,Math.min(remaining,2147483647));};armExpiry();
+  if(vd.downloadAllowed&&vd.downloadUrl){const link=document.createElement("a");link.href=vd.downloadUrl;link.download="creator-content.mp4";link.textContent="Download video";link.style.cssText="display:inline-block;margin-top:12px;color:#38d9a9";media.appendChild(link);}
   feedback.textContent="Access granted. Playback stops when your rental expires.";return;
  }
  const r=await fetch("/api/market-media-access?listingId="+encodeURIComponent(listingId),{cache:"no-store"}),d=await r.json();if(!r.ok)throw Error(vd.error||d.error);
