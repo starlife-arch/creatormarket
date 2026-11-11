@@ -9,6 +9,7 @@ Set these in the **Creator Market Netlify project**:
 - `API_VIDEO_API_KEY` — production api.video API key (server-side only).
 - `MARKET_VIDEO_GATEWAY_URL` — `https://market.elysiandate.site`.
 - `MARKET_VIDEO_GATEWAY_SECRET` — a new random secret of at least 32 characters. Use the exact same value as the Cloudflare Worker secret.
+- `MARKET_SESSION_SECRET` — reuse the existing Market session secret already configured in Netlify; do not generate a new one for this feature.
 
 Never place the api.video API key or gateway secret in browser-visible variables.
 
@@ -22,7 +23,7 @@ The Worker source is `cloudflare/market-video-gateway/src/index.js`.
 4. Ensure the Market hostname is proxied through Cloudflare for the route to execute. If the DNS record remains DNS-only, the Worker route will not intercept requests.
 5. Keep the Worker route fail-closed; do not bypass it to the api.video origin.
 
-Also add the Worker secret `API_VIDEO_API_KEY` with the production api.video key, and `MARKET_SESSION_SECRET` with the exact same value used by the Netlify Market project. The Netlify function and Worker both need the production api.video key, but it must remain server-side in each environment. The session secret lets the Worker bind encrypted tickets to the same signed-in browser session, preventing ticket sharing. The Worker accepts encrypted tickets issued by Netlify for both private uploads and playback. For every thumbnail, HLS playlist, key, segment, or download request, it also calls the signed internal Netlify validation function to re-check the user's age-verification status, creator approval, listing state, and active entitlement. This intentionally adds a server-side authorization call per media request. It only proxies paths for the video ID and private token inside that ticket, rewrites HLS playlist URIs back through the gateway, and rejects every new request after the ticket's exact millisecond expiry.
+Also add the Worker secret `API_VIDEO_API_KEY` with the production api.video key, and `MARKET_SESSION_SECRET` with the exact same value as Netlify's existing `MARKET_SESSION_SECRET`. The Netlify function and Worker both need the production api.video key, but it must remain server-side in each environment. The session secret lets the Worker bind encrypted tickets to the same signed-in browser session, preventing ticket sharing. The Worker accepts encrypted tickets issued by Netlify for both private uploads and playback. For every thumbnail, HLS playlist, key, segment, or download request, it also calls the signed internal Netlify validation function to re-check the user's age-verification status, creator approval, listing state, and active entitlement. This intentionally adds a server-side authorization call per media request. It only proxies paths for the video ID and private token inside that ticket, rewrites HLS playlist URIs back through the gateway, and rejects every new request after the ticket's exact millisecond expiry.
 
 ## Current integration boundary
 
