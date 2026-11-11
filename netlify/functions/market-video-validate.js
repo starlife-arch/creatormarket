@@ -35,14 +35,18 @@ exports.handler = async event => {
     if (scope === "preview") return json(200, { ok: true });
     const isOwner = listing.creatorUid === uid;
     if (!isOwner) {
-      let entitlements = await db.collection("users").doc(uid).collection("marketEntitlements").where("listingId", "==", listingId).get();
-      if (!entitlements.docs.length) entitlements = await db.collection("marketEntitlements").where("buyerUid", "==", uid).get();
       const now = Date.now();
-      const entitlement = entitlements.docs.map(doc => doc.data()).find(item => {
+      const findActive = docs => docs.map(doc => doc.data()).find(item => {
         if (item.listingId !== listingId || item.status !== "active") return false;
         const expiry = item.expiresAt?.toDate ? item.expiresAt.toDate().getTime() : item.expiresAt ? new Date(item.expiresAt).getTime() : null;
         return !expiry || expiry > now;
       });
+      const indexed = await db.collection("users").doc(uid).collection("marketEntitlements").where("listingId", "==", listingId).get();
+      let entitlement = findActive(indexed.docs);
+      if (!entitlement) {
+        const legacy = await db.collection("marketEntitlements").where("buyerUid", "==", uid).get();
+        entitlement = findActive(legacy.docs);
+      }
       if (!entitlement) return json(403, { error: "Your purchase or rental is no longer active." });
       const entitlementExpiry = entitlement.expiresAt?.toDate ? entitlement.expiresAt.toDate().getTime() : entitlement.expiresAt ? new Date(entitlement.expiresAt).getTime() : null;
       if (entitlementExpiry && expMs > entitlementExpiry) return json(403, { error: "Playback ticket exceeds the rental expiry." });
