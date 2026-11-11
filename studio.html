@@ -30,13 +30,24 @@ document.addEventListener("click",async e=>{const b=e.target.closest("button[dat
   const upload=await startResponse.json();if(!startResponse.ok)throw Error(upload.error||"Could not prepare private video upload.");
   b.textContent="Uploading video…";
   const chunkSize=upload.chunkSizeBytes||50*1024*1024;
-  for(let offset=0;offset<file.size;offset+=chunkSize){
-   const end=Math.min(offset+chunkSize,file.size),chunk=file.slice(offset,end),fd=new FormData();
-   fd.append("file",chunk,file.name);
-   const response=await fetch(upload.uploadUrl,{method:"POST",headers:{"Content-Range":"bytes "+offset+"-"+(end-1)+"/"+file.size},body:fd});
+  if(file.size<=90*1024*1024){
+   const fd=new FormData();fd.append("file",file,file.name);
+   const response=await fetch(upload.uploadUrl,{method:"POST",body:fd});
    const result=await response.json().catch(()=>({}));
-   if(!response.ok)throw Error(result.error||result.message||("Video upload failed at byte "+offset+"."));
-   const percent=Math.min(99,Math.round(end/file.size*100));b.textContent="Uploading video… "+percent+"%";
+   if(!response.ok)throw Error(result.error||result.message||"Video upload failed.");
+   b.textContent="Uploading video… 99%";
+  }else{
+   let offset=0;
+   while(offset<file.size){
+    let end=Math.min(offset+chunkSize,file.size);
+    const remaining=file.size-end;
+    if(remaining>0&&remaining<5*1024*1024)end=file.size-5*1024*1024;
+    const chunk=file.slice(offset,end),fd=new FormData();fd.append("file",chunk,file.name);
+    const response=await fetch(upload.uploadUrl,{method:"POST",headers:{"Content-Range":"bytes "+offset+"-"+(end-1)+"/"+file.size},body:fd});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok)throw Error(result.error||result.message||("Video upload failed at byte "+offset+"."));
+    offset=end;const percent=Math.min(99,Math.round(offset/file.size*100));b.textContent="Uploading video… "+percent+"%";
+   }
   }
   b.textContent="Processing private video…";
   let published=false,lastMessage="Video is still processing.";
