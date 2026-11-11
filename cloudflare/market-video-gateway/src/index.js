@@ -65,9 +65,9 @@ async function handleUpload(request, env) {
   const headers = new Headers({
     Authorization: "Basic " + btoa(env.API_VIDEO_API_KEY + ":"),
     "Content-Type": contentType,
-    "Content-Range": contentRange,
     Accept: "application/json"
   });
+  if (contentRange) headers.set("Content-Range", contentRange);
   let upstream;
   try {
     upstream = await fetch("https://ws.api.video/videos/" + encodeURIComponent(claims.videoId) + "/source", {
