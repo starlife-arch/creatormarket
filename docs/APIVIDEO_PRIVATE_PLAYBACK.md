@@ -22,7 +22,7 @@ The Worker source is `cloudflare/market-video-gateway/src/index.js`.
 4. Ensure the Market hostname is proxied through Cloudflare for the route to execute. If the DNS record remains DNS-only, the Worker route will not intercept requests.
 5. Keep the Worker route fail-closed; do not bypass it to the api.video origin.
 
-Also add the Worker secret `API_VIDEO_API_KEY` with the production api.video key. The Worker accepts encrypted tickets issued by Netlify for both private uploads and playback. It only proxies paths for the video ID and private token inside that ticket, rewrites HLS playlist URIs back through the gateway, and rejects every new request after the ticket's exact millisecond expiry.
+Also add the Worker secret `API_VIDEO_API_KEY` with the production api.video key. The Netlify function and Worker both need the production key, but it must remain server-side in each environment. The Worker accepts encrypted tickets issued by Netlify for both private uploads and playback. It only proxies paths for the video ID and private token inside that ticket, rewrites HLS playlist URIs back through the gateway, and rejects every new request after the ticket's exact millisecond expiry.
 
 ## Current integration boundary
 
