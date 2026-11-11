@@ -18,11 +18,15 @@ exports.handler = async event => {
       .where("buyerUid", "==", context.uid).limit(250).get();
     const entitlements = snap.docs.map(doc => {
       const d = doc.data(), expires = dateValue(d.expiresAt), created = dateValue(d.createdAt);
+      const started = dateValue(d.startedAt) || created;
       return { id: doc.id, listingId: d.listingId, creatorUid: d.creatorUid,
         creatorUsername: d.creatorUsername || "", listingTitle: d.listingTitle || "Creator content",
-        offerType: d.offerType, status: d.status, expiresAt: expires?.toISOString() || null,
+        offerType: d.offerType || "rental", offerLabel: d.offerLabel || "",
+        offerUnit: d.offerUnit || null, offerValue: Number.isFinite(Number(d.offerValue)) ? Number(d.offerValue) : null,
+        priceTokens: Number(d.priceTokens || 0), status: d.status,
+        startedAt: started?.toISOString() || null, expiresAt: expires?.toISOString() || null,
         active: d.status === "active" && (!expires || expires.getTime() > Date.now()),
-        _createdAt: created?.getTime() || 0 };
+        _createdAt: created?.getTime() || started?.getTime() || 0 };
     }).sort((a,b) => b._createdAt-a._createdAt).slice(0,100)
       .map(({_createdAt,...item})=>item);
     return json(200, { entitlements });
