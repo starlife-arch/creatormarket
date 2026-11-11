@@ -143,16 +143,22 @@ exports.handler = async event => {
         return json(502, { error: "Didit returned an invalid verification link. Your 50 tokens have been refunded; please contact support if this repeats." });
       }
       const sessionId = String(result.session_id);
-      await db.collection("marketDiditSessions").doc(sessionId).set({
-        uid: context.uid, requestId, workflowId, environment,
-        createdAt: FieldValue.serverTimestamp(), lastAppliedCreatedAt: 0
-      });
-      await requestRef.set({
-        uid: context.uid, requestId, provider: "didit", status: "didit_in_progress",
-        diditSessionId: sessionId, verificationUrl: verificationUrl.toString(), evidence: {},
-        diditChargeId: requestId, diditChargeTokens: 50,
-        updatedAt: FieldValue.serverTimestamp()
-      }, { merge: true });
+      try {
+        await db.collection("marketDiditSessions").doc(sessionId).set({
+          uid: context.uid, requestId, workflowId, environment,
+          createdAt: FieldValue.serverTimestamp(), lastAppliedCreatedAt: 0
+        });
+        await requestRef.set({
+          uid: context.uid, requestId, provider: "didit", status: "didit_in_progress",
+          diditSessionId: sessionId, verificationUrl: verificationUrl.toString(), evidence: {},
+          diditChargeId: requestId, diditChargeTokens: 50,
+          updatedAt: FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (error) {
+        await db.collection("marketDiditSessions").doc(sessionId).delete().catch(() => null);
+        await refundFailedAttempt("session_persistence_failed");
+        throw error;
+      }
       return json(200, { requestId, status: "didit_in_progress", verificationUrl: verificationUrl.toString(), chargedTokens: 50 });
     }
 
