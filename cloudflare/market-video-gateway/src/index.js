@@ -30,7 +30,7 @@ async function signValidationBody(body, secret) {
   return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 async function validateEntitlement(claims, env) {
-  const origin = String(env.MARKET_VALIDATION_ORIGIN || "");
+  const origin = String(env.MARKET_VALIDATION_ORIGIN || "https://marketelysiandate.netlify.app");
   if (!origin || !env.MARKET_VIDEO_GATEWAY_SECRET) return { ok: false, status: 503 };
   const body = JSON.stringify({
     uid: claims.sub, listingId: claims.listingId, videoId: claims.videoId,
