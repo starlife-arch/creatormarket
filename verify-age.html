@@ -5,14 +5,14 @@
 <meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow">
 <title>Verify your age | Creator Market</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#111018;color:#f7f4fb;font:15px system-ui,sans-serif}
-.wrap{width:min(680px,calc(100% - 32px));margin:40px auto}.panel{background:#1b1924;border:1px solid #393244;border-radius:18px;padding:24px;margin:16px 0}
-p,.muted{color:#b8b1c5;line-height:1.65}label{display:block;margin:18px 0}
-input{display:block;width:100%;margin-top:8px;padding:12px;background:#111018;color:white;border:1px solid #494255;border-radius:10px}
-button,.action{display:inline-block;border:0;border-radius:24px;padding:12px 18px;background:#c6a6ff;color:#20172d;font-weight:800;cursor:pointer;text-decoration:none;margin:6px 6px 6px 0}
-.secondary{background:#34303e;color:#f7f4fb}.action[hidden],form[hidden],button[hidden]{display:none}
-button:disabled{opacity:.55}.status{padding:14px;border:1px solid #ffffff25;border-radius:12px;margin:16px 0;line-height:1.5}
-.warning{font-size:13px;color:#e0d7ef}a{color:#c6a6ff}
+*{box-sizing:border-box}body{margin:0;background:#0b1220;color:#f8fafc;font:15px system-ui,sans-serif}
+.wrap{width:min(680px,calc(100% - 32px));margin:40px auto}.panel{background:#121d2e;border:1px solid #26364a;border-radius:18px;padding:24px;margin:16px 0}
+p,.muted{color:#94a3b8;line-height:1.65}label{display:block;margin:18px 0}
+input{display:block;width:100%;margin-top:8px;padding:12px;background:#0b1220;color:white;border:1px solid #334155;border-radius:10px}
+button,.action{display:inline-block;border:0;border-radius:24px;padding:12px 18px;background:#38d9a9;color:#071b19;font-weight:800;cursor:pointer;text-decoration:none;margin:6px 6px 6px 0}
+.secondary{background:#17283b;color:#f8fafc;border:1px solid #ffffff30}.action[hidden],form[hidden],button[hidden]{display:none}
+button:disabled{opacity:.55}.status{padding:14px;border:1px solid #ffffff20;border-radius:12px;margin:16px 0;line-height:1.5}
+.warning{font-size:13px;color:#cbd5e1}a{color:#38d9a9}
 </style>
 </head>
 <body>
@@ -53,10 +53,12 @@ async function loadStatus(){
   if(!r.ok)throw Error(d.error||"Could not check verification status.");
   statusBox.textContent=d.message||("Status: "+d.status);
   if(d.status==="verified"){diditButton.hidden=true;manualButton.hidden=true;form.hidden=true;continueDidit.hidden=true;}
-  else if(d.status==="didit_in_progress"){
-    form.hidden=true;continueDidit.hidden=!d.verificationUrl;
+  else if(d.status==="didit_starting"){
+    form.hidden=true;diditButton.hidden=true;manualButton.hidden=true;continueDidit.hidden=true;
+    statusBox.textContent="Your 50-token automatic verification request is being created. Please wait a moment and refresh this page if needed.";
+  } else if(d.status==="didit_in_progress"){
+    form.hidden=true;diditButton.hidden=true;manualButton.hidden=true;continueDidit.hidden=!d.verificationUrl;
     if(d.verificationUrl)continueDidit.href=d.verificationUrl;
-    diditButton.textContent="Start a new Didit attempt";
   } else if(d.status==="pending_review"){
     diditButton.hidden=true;manualButton.hidden=true;form.hidden=true;continueDidit.hidden=true;
   }
