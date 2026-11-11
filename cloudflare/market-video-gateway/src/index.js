@@ -46,7 +46,7 @@ async function handle(request, env) {
   let claims, providerUrl;
   try {
     claims = await decryptTicket(incoming.searchParams.get("ticket"), env.MARKET_VIDEO_GATEWAY_SECRET);
-    if (claims.aud !== incoming.host || !Number.isFinite(claims.exp) || claims.exp * 1000 <= Date.now()) return error(410, "This rental has expired");
+    if (claims.aud !== incoming.host || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This rental has expired");
     if (!claims.videoId || !claims.privateToken || !claims.sessionToken || !claims.listingId) return error(403, "Invalid playback authorization");
     const path = new TextDecoder().decode(decodeBase64Url(incoming.searchParams.get("path") || ""));
     providerUrl = allowedProviderUrl("https://vod.api.video" + path, claims);
