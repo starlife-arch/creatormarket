@@ -20,17 +20,17 @@ button:disabled{opacity:.55}.status{padding:14px;border:1px solid #ffffff25;bord
 <a href="/member">← Back to Market account</a>
 <section class="panel">
 <h1>Verify you're 18 or older</h1>
-<p>Creator Market uses a separate age-verification check before restricted creator content can be accessed. Choose Didit for an automated identity and liveness workflow, or use the manual review option if you cannot complete Didit.</p>
+<p>Creator Market uses a separate age-verification check before restricted creator content can be accessed. Choose automatic Didit verification for 50 tokens, or submit your documents for free manual review. Both methods verify that you are 18 or older.</p>
 <p class="warning">Didit handles identity evidence within its hosted verification flow. Creator Market stores the verification session reference and decision status, not copies of your identity document or selfie. Manual review requires an ID image and recent selfie; it does not automatically authenticate document security features or provide liveness detection.</p>
 <div id="status" class="status" role="status" aria-live="polite">Checking your verification status…</div>
 <div id="choices">
-<button id="diditButton" type="button">Verify securely with Didit</button>
-<button id="manualButton" class="secondary" type="button">Use manual review instead</button>
+<button id="diditButton" type="button">Automatic verification with Didit · 50 tokens</button>
+<button id="manualButton" class="secondary" type="button">Manual verification · Free</button>
 <a id="continueDidit" class="action" hidden target="_blank" rel="noopener noreferrer">Continue Didit verification</a>
 </div>
 <form id="form" hidden>
 <h2>Manual age review</h2>
-<p class="muted">Upload a clear photo of the photo page/front of your government-issued identity document and a recent selfie. JPG, PNG or WebP, maximum 8 MB each.</p>
+<p class="muted">Manual review is free. Upload a clear photo of the photo page/front of your government-issued identity document and a recent selfie. JPG, PNG or WebP, maximum 8 MB each.</p>
 <label>Government identity document image<input id="identity" type="file" accept="image/jpeg,image/png,image/webp" required></label>
 <label>Recent selfie<input id="selfie" type="file" accept="image/jpeg,image/png,image/webp" required></label>
 <button id="submit" type="submit">Submit for age review</button>
