@@ -32,7 +32,7 @@ exports.handler = async event => {
         if (!creator.exists || creator.data().status !== "approved") return json(403, { error: "An approved creator account is required." });
         // Avoid composite-index dependency; sort the bounded result in memory.
         const snap = await db.collection("marketListings").where("creatorUid", "==", context.uid).limit(100).get();
-        const listings = [...snap.docs].sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
+        const listings = [...snap.docs].filter(doc => !(doc.data().mediaResourceType === "video" && doc.data().mediaProvider !== "api_video")).sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
         return json(200, { listings: listings.map(d => ({ id: d.id, ...d.data() })) });
       }
       const username = cleanText(event.queryStringParameters?.u || "", 30).toLowerCase().replace(/^@/, "");
