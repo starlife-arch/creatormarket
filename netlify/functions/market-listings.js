@@ -47,7 +47,7 @@ exports.handler = async event => {
       const listings = [...snap.docs].sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
       return json(200, { listings: listings.map(d => {
         const v = d.data();
-        return { id: d.id, title: v.title, description: v.description, offers: v.offers, createdAt: v.createdAt?.toDate ? v.createdAt.toDate().toISOString() : null };
+        return { id: d.id, title: v.title, description: v.description, offers: v.offers, hasVideo: v.mediaProvider === "api_video" && Boolean(v.videoId), mediaKind: v.mediaKind || (v.mediaResourceType === "video" ? "video" : "image"), durationSeconds: Number(v.durationSeconds || 0), createdAt: v.createdAt?.toDate ? v.createdAt.toDate().toISOString() : null };
       }) });
     }
     const creator = await db.collection("marketCreators").doc(context.uid).get();
