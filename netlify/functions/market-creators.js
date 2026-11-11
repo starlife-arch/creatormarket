@@ -1,10 +1,10 @@
 const { json } = require("./_market-auth");
-const { loadMarketUser, cleanText } = require("./_market-data");
+const { loadEligibleUser, cleanText } = require("./_market-data");
 
 exports.handler = async event => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed" }, { Allow: "GET" });
   try {
-    const context = await loadMarketUser(event);
+    const context = await loadEligibleUser(event);
     if (context.error) return context.error;
     const q = cleanText(event.queryStringParameters?.q || "", 40).toLowerCase().replace(/^@/, "");
     const db = context.admin.firestore();
