@@ -46,7 +46,7 @@ async function handleUpload(request, env) {
   try {
     claims = await decryptTicket(incoming.searchParams.get("ticket"), env.MARKET_VIDEO_GATEWAY_SECRET);
     if (claims.aud !== incoming.host || claims.scope !== "upload" || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This upload authorization has expired");
-    if (!claims.videoId || !claims.listingId || !claims.sub) return error(403, "Invalid upload authorization");
+    if (!claims.videoId || !claims.listingId || !claims.sub || !Number.isSafeInteger(claims.sizeBytes) || claims.sizeBytes < 1 || claims.sizeBytes > 500 * 1024 * 1024 || !["video/mp4", "video/webm"].includes(claims.contentType)) return error(403, "Invalid upload authorization");
     if (!/^[A-Za-z0-9_-]{6,80}$/.test(claims.videoId)) return error(403, "Invalid video reference");
   } catch (_) { return error(403, "Invalid upload authorization"); }
   const contentRange = request.headers.get("content-range") || "";
@@ -55,10 +55,10 @@ async function handleUpload(request, env) {
     const match = contentRange.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
     const start = Number(match[1]), end = Number(match[2]), total = Number(match[3]);
     const chunkBytes = end - start + 1;
-    if (end < start || total < end + 1 || chunkBytes < 5 * 1024 * 1024 || chunkBytes > 55 * 1024 * 1024) return error(400, "Progressive upload chunks must be between 5 and 55 MiB");
+    if (total !== claims.sizeBytes || end < start || total < end + 1 || chunkBytes < 5 * 1024 * 1024 || chunkBytes > 55 * 1024 * 1024) return error(400, "Progressive upload chunk does not match the authorized file size or chunk limits");
   } else {
     const contentLength = Number(request.headers.get("content-length") || 0);
-    if (!Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > 95 * 1024 * 1024) return error(413, "Single uploads must be 95 MiB or smaller; larger videos must be sent in 5–55 MiB chunks");
+    if (claims.sizeBytes > 90 * 1024 * 1024 || !Number.isSafeInteger(contentLength) || contentLength < claims.sizeBytes || contentLength > 95 * 1024 * 1024) return error(413, "Single uploads must be 90 MiB or smaller; larger videos must be sent in 5–55 MiB chunks");
   }
   const contentType = request.headers.get("content-type") || "";
   if (!/^multipart\/form-data;\s*boundary=/i.test(contentType)) return error(400, "Upload must use multipart form data");
