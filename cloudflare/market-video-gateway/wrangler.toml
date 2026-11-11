@@ -4,3 +4,5 @@ compatibility_date = "2026-11-11"
 
 [vars]
 MARKET_VALIDATION_ORIGIN = "https://marketelysiandate.netlify.app"
+
+[previews]
