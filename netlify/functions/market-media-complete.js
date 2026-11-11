@@ -3,7 +3,6 @@ const { json, parseBody } = require("./_market-auth");
 const { loadEligibleUser, cleanText } = require("./_market-data");
 const MAX_BYTES = {
   image: { jpg: 30 * 1024 * 1024, jpeg: 30 * 1024 * 1024, png: 30 * 1024 * 1024, webp: 30 * 1024 * 1024 },
-  video: { mp4: 500 * 1024 * 1024, webm: 500 * 1024 * 1024 }
 };
 exports.handler = async event => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" }, { Allow: "POST" });
@@ -21,7 +20,7 @@ exports.handler = async event => {
     cloudinary.config({ secure: true });
     const resource = await cloudinary.api.resource(data.publicId, { resource_type: data.resourceType, type: "authenticated" });
     const bytes = Number(resource.bytes || 0), format = String(resource.format || "").toLowerCase(), contentType = data.contentType;
-    const allowed = data.resourceType === "image" ? ["image/jpeg", "image/png", "image/webp"].includes(contentType) : ["video/mp4", "video/webm"].includes(contentType);
+    const allowed = data.resourceType === "image" && ["image/jpeg", "image/png", "image/webp"].includes(contentType);
     if (!allowed || bytes !== Number(data.sizeBytes) || bytes < 1 || bytes > (MAX_BYTES[data.resourceType]?.[format] || 0) ||
         resource.resource_type !== data.resourceType || resource.type !== "authenticated" ||
         !String(resource.public_id || "").startsWith("creator-market/" + context.uid + "/" + listingId + "/")) {
