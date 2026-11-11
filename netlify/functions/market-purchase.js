@@ -69,7 +69,9 @@ exports.handler = async event => {
       });
       tx.create(entitlementRef, {
         buyerUid: context.uid, creatorUid: listing.creatorUid, creatorUsername: listing.creatorUsername, listingTitle: listing.title, listingId, offerId,
-        offerType: offer.type, startedAt: context.admin.firestore.Timestamp.fromMillis(now),
+        offerType: offer.type, offerLabel: offer.label || (offer.type === "permanent" ? "Permanent access" : "Rental"),
+        offerUnit: offer.unit || null, offerValue: Number.isSafeInteger(offer.value) ? offer.value : null,
+        priceTokens: gross, startedAt: context.admin.firestore.Timestamp.fromMillis(now),
         expiresAt: expiresAt ? context.admin.firestore.Timestamp.fromDate(expiresAt) : null,
         downloadAllowed: listing.downloadAllowed === true, status: "active",
         purchaseId, createdAt: context.admin.firestore.FieldValue.serverTimestamp()
