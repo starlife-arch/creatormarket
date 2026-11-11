@@ -79,9 +79,10 @@ async function handleUpload(request, env) {
   });
 }
 async function handle(request, env) {
+  const incoming = new URL(request.url);
+  if (incoming.pathname === "/video-upload") return handleUpload(request, env);
   if (request.method !== "GET" && request.method !== "HEAD") return error(405, "Method not allowed");
   if (!env.MARKET_VIDEO_GATEWAY_SECRET) return error(503, "Video gateway is not configured");
-  const incoming = new URL(request.url);
   if (incoming.pathname !== "/video-gateway") return error(404, "Not found");
   let claims, providerUrl;
   try {
