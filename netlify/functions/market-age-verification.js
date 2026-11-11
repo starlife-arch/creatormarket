@@ -68,7 +68,7 @@ exports.handler = async event => {
       const FieldValue = context.admin.firestore.FieldValue;
       try {
         await db.runTransaction(async tx => {
-          const [freshUser, priorCharge] = await Promise.all([tx.get(userRef), tx.get(chargeRef)]);
+          const [freshUser, priorCharge, freshRequest] = await Promise.all([tx.get(userRef), tx.get(chargeRef), tx.get(requestRef)]);
           if (!freshUser.exists) throw new Error("ACCOUNT_UNAVAILABLE");
           if (priorCharge.exists) throw new Error("CHARGE_ALREADY_EXISTS");
           const profile = freshUser.data() || {};
@@ -92,6 +92,8 @@ exports.handler = async event => {
         });
       } catch (error) {
         if (error.message === "INSUFFICIENT_TOKENS") return json(402, { error: "Automatic Didit verification costs 50 tokens. Add tokens or choose free manual verification." });
+        if (error.message === "DIDIT_ALREADY_STARTED") return json(409, { error: "Your automatic verification is already being started. Refresh this page in a moment." });
+        if (error.message === "MANUAL_REVIEW_ACTIVE") return json(409, { error: "You already have a free manual review request in progress. Finish it or wait for the review before switching methods." });
         if (error.message === "WALLET_HOLD") return json(403, { error: "Your wallet is currently on hold." });
         throw error;
       }
