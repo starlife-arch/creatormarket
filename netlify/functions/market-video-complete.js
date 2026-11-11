@@ -34,7 +34,7 @@ exports.handler = async event => {
       video = await verify.json().catch(() => ({}));
       if (!verify.ok || video.public !== false) return json(502, { error: "Private video status could not be confirmed. The listing remains unpublished." });
     }
-    if (!video.assets?.hls || !video.assets?.thumbnail) {
+    if (!video.assets?.hls || !video.assets?.thumbnail || (listingSnap.data().downloadAllowed === true && !video.assets?.mp4)) {
       return json(202, { ok: true, status: "processing", message: "Your video is uploaded privately and is being processed. Check again in a moment." });
     }
     await db.runTransaction(async tx => {
