@@ -31,7 +31,7 @@ exports.handler = async event => {
       if (!preset) return json(503, { error: "Market image uploads are not configured." });
       const uploadId = crypto.randomUUID(), publicId = "creator-market/" + context.uid + "/profile/avatar-" + uploadId;
       const timestamp = Math.floor(Date.now() / 1000);
-      const signedParams = { public_id: publicId, timestamp, upload_preset: preset, overwrite: false };
+      const signedParams = { public_id: publicId, timestamp, upload_preset: preset, type: "authenticated", overwrite: false };
       const signature = cloudinary.utils.api_sign_request(signedParams, config.api_secret);
       await db.collection("marketCreatorAvatarIntents").doc(uploadId).create({
         uid: context.uid, publicId, contentType, sizeBytes,
@@ -49,20 +49,20 @@ exports.handler = async event => {
       if (!intent.exists) return json(404, { error: "Avatar upload was not found." });
       const data = intent.data(), expiry = data.expiresAt?.toDate ? data.expiresAt.toDate().getTime() : new Date(data.expiresAt).getTime();
       if (data.uid !== context.uid || data.completedAt || !Number.isFinite(expiry) || expiry <= Date.now()) return json(410, { error: "Avatar upload authorization expired or was already used." });
-      const resource = await cloudinary.api.resource(data.publicId, { resource_type: "image", type: "upload" });
-      if (resource.resource_type !== "image" || resource.type !== "upload" || Number(resource.bytes) !== Number(data.sizeBytes) || Number(resource.bytes) > 5 * 1024 * 1024 || !["jpg", "jpeg", "png", "webp"].includes(String(resource.format).toLowerCase()) || resource.public_id !== data.publicId) {
-        await cloudinary.uploader.destroy(data.publicId, { resource_type: "image", type: "upload", invalidate: true }).catch(() => null);
+      const resource = await cloudinary.api.resource(data.publicId, { resource_type: "image", type: "authenticated" });
+      if (resource.resource_type !== "image" || resource.type !== "authenticated" || Number(resource.bytes) !== Number(data.sizeBytes) || Number(resource.bytes) > 5 * 1024 * 1024 || !["jpg", "jpeg", "png", "webp"].includes(String(resource.format).toLowerCase()) || resource.public_id !== data.publicId) {
+        await cloudinary.uploader.destroy(data.publicId, { resource_type: "image", type: "authenticated", invalidate: true }).catch(() => null);
         return json(400, { error: "Uploaded avatar did not match the authorized image." });
       }
       await db.runTransaction(async tx => {
         const [freshIntent, freshCreator] = await Promise.all([tx.get(intentRef), tx.get(creatorRef)]);
         if (!freshIntent.exists || freshIntent.data().completedAt || !freshCreator.exists || freshCreator.data().status !== "approved") throw new Error("AVATAR_UPLOAD_ALREADY_USED");
         tx.update(intentRef, { completedAt: context.admin.firestore.FieldValue.serverTimestamp() });
-        tx.update(creatorRef, { avatarPublicId: data.publicId, avatarPreviewUrl: resource.secure_url, updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
+        tx.update(creatorRef, { avatarPublicId: data.publicId, avatarPreviewUrl: cloudinary.url(data.publicId, { resource_type: "image", type: "authenticated", sign_url: true, secure: true }), updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
       });
       const oldId = creatorSnap.data().avatarPublicId;
-      if (oldId && oldId !== data.publicId) await cloudinary.uploader.destroy(oldId, { resource_type: "image", type: "upload", invalidate: true }).catch(() => null);
-      return json(200, { ok: true, avatarUrl: resource.secure_url });
+      if (oldId && oldId !== data.publicId) await cloudinary.uploader.destroy(oldId, { resource_type: "image", type: "authenticated", invalidate: true }).catch(() => null);
+      return json(200, { ok: true, avatarUrl: cloudinary.url(data.publicId, { resource_type: "image", type: "authenticated", sign_url: true, secure: true }) });
     }
     return json(400, { error: "Unsupported avatar action." });
   } catch (error) {
