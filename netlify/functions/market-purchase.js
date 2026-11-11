@@ -35,7 +35,7 @@ exports.handler = async event => {
     await db.runTransaction(async tx => {
       const [prior, listingSnap, buyerSnap] = await Promise.all([tx.get(purchaseRef), tx.get(listingRef), tx.get(buyerRef)]);
       if (prior.exists) { response = { ok: true, alreadyProcessed: true, purchaseId, entitlementId: prior.data().entitlementId }; return; }
-      if (!listingSnap.exists || listingSnap.data().status !== "published" || !(listingSnap.data().mediaPublicId || (listingSnap.data().mediaProvider === "api_video" && listingSnap.data().videoId))) throw new Error("LISTING_UNAVAILABLE");
+      if (!listingSnap.exists || listingSnap.data().status !== "published" || !((listingSnap.data().mediaProvider === "api_video" && listingSnap.data().videoId) || (listingSnap.data().mediaPublicId && listingSnap.data().mediaResourceType !== "video"))) throw new Error("LISTING_UNAVAILABLE");
       if (!buyerSnap.exists) throw new Error("ACCOUNT_UNAVAILABLE");
       const listing = listingSnap.data();
       if (listing.creatorUid === context.uid) throw new Error("OWN_CONTENT");
