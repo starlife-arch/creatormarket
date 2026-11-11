@@ -50,8 +50,8 @@ exports.handler = async event => {
         return { id: doc.id, title: d.title || "Untitled listing", description: d.description || "",
           status: d.status || "unknown", mediaKind: d.mediaKind || (d.mediaResourceType === "video" ? "video" : "image"),
           mediaProvider: d.mediaProvider || "", creatorUid: d.creatorUid || "", creatorUsername: creator.username || d.creatorUsername || "",
-          creatorName: creator.displayName || "", creatorAvatarUrl: creator.avatarUrl || "", offers: (d.offers || []).map(o => ({ label: o.label || o.type, priceTokens: Number(o.priceTokens || 0) })) };
-      }).sort((a,b) => a.title.localeCompare(b.title));
+          creatorName: creator.displayName || "", creatorAvatarUrl: creator.avatarUrl || "", offers: (Array.isArray(d.offers) ? d.offers : []).map(o => ({ label: String(o?.label || o?.type || "Access"), priceTokens: Number(o?.priceTokens || 0) })) };
+      }).sort((a,b) => String(a.title || "").localeCompare(String(b.title || "")));
       return json(200, { users, creators, listings });
     }
 
