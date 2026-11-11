@@ -28,7 +28,7 @@ exports.handler = async event => {
     ]);
     if (!userSnap.exists || !listingSnap.exists) return json(403, { error: "Market access is unavailable." });
     const user = userSnap.data() || {}, listing = listingSnap.data() || {};
-    if (user.marketAgeVerified !== true || user.banned || user.suspended || user.accountSuspended) return json(403, { error: "Age verification or account access is no longer valid." });
+    if (user.marketAgeVerified !== true || user.banned || user.suspended || user.accountSuspended || user.marketBanned === true) return json(403, { error: "Age verification or account access is no longer valid." });
     if (listing.mediaProvider !== "api_video" || listing.videoId !== videoId) return json(403, { error: "This video is no longer available." });
     if (scope === "preview") {
       if (listing.status !== "published") return json(403, { error: "This video is no longer available for preview." });
