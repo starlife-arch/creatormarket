@@ -22,6 +22,31 @@ async function decryptTicket(ticket, secret) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, combined);
   return JSON.parse(new TextDecoder().decode(plain));
 }
+async function signValidationBody(body, secret) {
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(body)));
+  let binary = "";
+  signature.forEach(byte => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+async function validateEntitlement(claims, env) {
+  const origin = String(env.MARKET_VALIDATION_ORIGIN || "");
+  if (!origin || !env.MARKET_VIDEO_GATEWAY_SECRET) return { ok: false, status: 503 };
+  const body = JSON.stringify({
+    uid: claims.sub, listingId: claims.listingId, videoId: claims.videoId,
+    scope: claims.scope, expMs: claims.expMs
+  });
+  const signature = await signValidationBody(body, env.MARKET_VIDEO_GATEWAY_SECRET);
+  let response;
+  try {
+    response = await fetch(new URL("/.netlify/functions/market-video-validate", origin).toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Market-Video-Gateway-Signature": signature },
+      body
+    });
+  } catch (_) { return { ok: false, status: 503 }; }
+  return { ok: response.ok, status: response.status >= 500 ? 503 : 403 };
+}
 function error(status, message) {
   return new Response(message, { status, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 }
@@ -102,6 +127,9 @@ async function handle(request, env) {
     if (claims.scope === "playback" && !providerUrl.pathname.endsWith("/hls/manifest.m3u8") && !providerUrl.pathname.includes("/hls/")) return error(403, "HLS playback only");
     if (claims.scope === "download" && !providerUrl.pathname.endsWith("/mp4/source.mp4")) return error(403, "Download access only");
   } catch (_) { return error(403, "Invalid or expired playback authorization"); }
+
+  const entitlementCheck = await validateEntitlement(claims, env);
+  if (!entitlementCheck.ok) return error(entitlementCheck.status, entitlementCheck.status === 503 ? "Market authorization service is unavailable" : "Your Market access is no longer active");
 
   const headers = new Headers();
   for (const name of ["range", "if-range", "if-none-match"]) {
