@@ -50,10 +50,16 @@ async function handleUpload(request, env) {
     if (!/^[A-Za-z0-9_-]{6,80}$/.test(claims.videoId)) return error(403, "Invalid video reference");
   } catch (_) { return error(403, "Invalid upload authorization"); }
   const contentRange = request.headers.get("content-range") || "";
-  if (!/^bytes \d+-\d+\/\d+$/.test(contentRange)) return error(400, "A valid byte Content-Range is required");
-  const match = contentRange.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
-  const start = Number(match[1]), end = Number(match[2]), total = Number(match[3]);
-  if (end < start || total < end + 1 || end - start + 1 > 55 * 1024 * 1024) return error(400, "Upload chunks must be no larger than 55 MiB");
+  if (contentRange) {
+    if (!/^bytes \d+-\d+\/\d+$/.test(contentRange)) return error(400, "A valid byte Content-Range is required");
+    const match = contentRange.match(/^bytes (\d+)-(\d+)\/(\d+)$/);
+    const start = Number(match[1]), end = Number(match[2]), total = Number(match[3]);
+    const chunkBytes = end - start + 1;
+    if (end < start || total < end + 1 || chunkBytes < 5 * 1024 * 1024 || chunkBytes > 55 * 1024 * 1024) return error(400, "Progressive upload chunks must be between 5 and 55 MiB");
+  } else {
+    const contentLength = Number(request.headers.get("content-length") || 0);
+    if (!Number.isSafeInteger(contentLength) || contentLength < 1 || contentLength > 95 * 1024 * 1024) return error(413, "Single uploads must be 95 MiB or smaller; larger videos must be sent in 5–55 MiB chunks");
+  }
   const contentType = request.headers.get("content-type") || "";
   if (!/^multipart\/form-data;\s*boundary=/i.test(contentType)) return error(400, "Upload must use multipart form data");
   const headers = new Headers({
