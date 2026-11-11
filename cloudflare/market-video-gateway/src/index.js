@@ -94,10 +94,10 @@ async function handle(request, env) {
   try {
     claims = await decryptTicket(incoming.searchParams.get("ticket"), env.MARKET_VIDEO_GATEWAY_SECRET);
     if (claims.aud !== incoming.host || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This rental has expired");
-    if (!claims.videoId || !claims.privateToken || !claims.sessionToken || !claims.listingId || !["preview", "playback"].includes(claims.scope)) return error(403, "Invalid playback authorization");
+    if (!claims.videoId || !claims.privateToken || !claims.sessionToken || !claims.listingId || !["preview", "playback", "download"].includes(claims.scope)) return error(403, "Invalid playback authorization");
     const path = new TextDecoder().decode(decodeBase64Url(incoming.searchParams.get("path") || ""));
     providerUrl = allowedProviderUrl("https://vod.api.video" + path, claims);
-    if (claims.scope === "preview" && !providerUrl.pathname.endsWith("/thumbnail.jpg")) return error(403, "Preview access only");
+    if (claims.scope === "preview" && !providerUrl.pathname.endsWith("/thumbnail.jpg")) return error(403, "Preview access only");\n    if (claims.scope === "playback" && !providerUrl.pathname.endsWith("/hls/manifest.m3u8") && !providerUrl.pathname.includes("/hls/")) return error(403, "HLS playback only");\n    if (claims.scope === "download" && !providerUrl.pathname.endsWith("/mp4/source.mp4")) return error(403, "Download access only");
   } catch (_) { return error(403, "Invalid or expired playback authorization"); }
 
   const headers = new Headers();
