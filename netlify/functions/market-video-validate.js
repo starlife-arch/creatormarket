@@ -35,7 +35,8 @@ exports.handler = async event => {
     if (scope === "preview") return json(200, { ok: true });
     const isOwner = listing.creatorUid === uid;
     if (!isOwner) {
-      const entitlements = await db.collection("marketEntitlements").where("buyerUid", "==", uid).get();
+      let entitlements = await db.collection("users").doc(uid).collection("marketEntitlements").where("listingId", "==", listingId).get();
+      if (!entitlements.docs.length) entitlements = await db.collection("marketEntitlements").where("buyerUid", "==", uid).get();
       const now = Date.now();
       const entitlement = entitlements.docs.map(doc => doc.data()).find(item => {
         if (item.listingId !== listingId || item.status !== "active") return false;
