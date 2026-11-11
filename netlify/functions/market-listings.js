@@ -43,11 +43,12 @@ exports.handler = async event => {
       if (blocked.exists) return json(404, { error: "Creator not found." });
       const creatorProfile = await db.collection("marketCreators").doc(handle.data().uid).get();
       if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "Creator not found." });
+      const creatorData = creatorProfile.data();
       const snap = await db.collection("marketListings").where("creatorUid", "==", handle.data().uid).where("status", "==", "published").limit(100).get();
       const listings = [...snap.docs].filter(doc => !(doc.data().mediaResourceType === "video" && doc.data().mediaProvider !== "api_video")).sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
       return json(200, { listings: listings.map(d => {
         const v = d.data();
-        return { id: d.id, title: v.title, description: v.description, offers: v.offers, hasVideo: v.mediaProvider === "api_video" && Boolean(v.videoId), mediaKind: v.mediaKind || (v.mediaResourceType === "video" ? "video" : "image"), durationSeconds: Number(v.durationSeconds || 0), createdAt: v.createdAt?.toDate ? v.createdAt.toDate().toISOString() : null };
+        return { id: d.id, title: v.title, description: v.description, offers: v.offers, hasVideo: v.mediaProvider === "api_video" && Boolean(v.videoId), mediaKind: v.mediaKind || (v.mediaResourceType === "video" ? "video" : "image"), durationSeconds: Number(v.durationSeconds || 0), creatorUsername: creatorData.username || username, creatorName: creatorData.displayName || creatorData.username || username, creatorAvatarUrl: creatorData.avatarPreviewUrl || creatorData.avatarUrl || "", createdAt: v.createdAt?.toDate ? v.createdAt.toDate().toISOString() : null };
       }) });
     }
     const creator = await db.collection("marketCreators").doc(context.uid).get();
