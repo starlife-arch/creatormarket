@@ -71,6 +71,11 @@ exports.handler = async event => {
           const [freshUser, priorCharge, freshRequest] = await Promise.all([tx.get(userRef), tx.get(chargeRef), tx.get(requestRef)]);
           if (!freshUser.exists) throw new Error("ACCOUNT_UNAVAILABLE");
           if (priorCharge.exists) throw new Error("CHARGE_ALREADY_EXISTS");
+          if (freshRequest.exists) {
+            const current = freshRequest.data() || {};
+            if (current.provider === "didit" && ["didit_starting", "didit_in_progress"].includes(current.status)) throw new Error("DIDIT_ALREADY_STARTED");
+            if (current.status === "pending_review" || (current.status === "awaiting_upload" && Object.keys(current.evidence || {}).length)) throw new Error("MANUAL_REVIEW_ACTIVE");
+          }
           const profile = freshUser.data() || {};
           if (profile.banned || profile.suspended || profile.accountSuspended || profile.walletFrozen) throw new Error("WALLET_HOLD");
           const balance = Math.floor(Number(profile.walletBalance || 0));
@@ -92,6 +97,8 @@ exports.handler = async event => {
         });
       } catch (error) {
         if (error.message === "INSUFFICIENT_TOKENS") return json(402, { error: "Automatic Didit verification costs 50 tokens. Add tokens or choose free manual verification." });
+        if (error.message === "DIDIT_ALREADY_STARTED") return json(409, { error: "Your automatic verification is already being started. Refresh this page in a moment." });
+        if (error.message === "MANUAL_REVIEW_ACTIVE") return json(409, { error: "You already have a free manual review request in progress. Finish it or wait for the review before switching methods." });
         if (error.message === "DIDIT_ALREADY_STARTED") return json(409, { error: "Your automatic verification is already being started. Refresh this page in a moment." });
         if (error.message === "MANUAL_REVIEW_ACTIVE") return json(409, { error: "You already have a free manual review request in progress. Finish it or wait for the review before switching methods." });
         if (error.message === "WALLET_HOLD") return json(403, { error: "Your wallet is currently on hold." });
