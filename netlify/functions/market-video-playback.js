@@ -45,15 +45,19 @@ exports.handler = async event => {
     const isOwner = listing.creatorUid === context.uid;
     let entitlement = null;
     if (!previewOnly && !isOwner) {
-      let snap = await db.collection("users").doc(context.uid).collection("marketEntitlements")
-        .where("listingId", "==", listingId).get();
-      if (!snap.docs.length) snap = await db.collection("marketEntitlements").where("buyerUid", "==", context.uid).get();
       const now = Date.now();
-      entitlement = snap.docs.map(doc => doc.data()).find(item => {
+      const findActive = docs => docs.map(doc => doc.data()).find(item => {
         if (item.listingId !== listingId || item.status !== "active") return false;
         const exp = item.expiresAt?.toDate ? item.expiresAt.toDate().getTime() : item.expiresAt ? new Date(item.expiresAt).getTime() : null;
         return !exp || exp > now;
       });
+      const indexed = await db.collection("users").doc(context.uid).collection("marketEntitlements")
+        .where("listingId", "==", listingId).get();
+      entitlement = findActive(indexed.docs);
+      if (!entitlement) {
+        const legacy = await db.collection("marketEntitlements").where("buyerUid", "==", context.uid).get();
+        entitlement = findActive(legacy.docs);
+      }
       if (!entitlement) return json(403, { error: "Purchase an access offer to watch this video." });
     }
     const videoId = String(listing.videoId);
