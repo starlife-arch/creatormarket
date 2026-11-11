@@ -32,7 +32,7 @@ exports.handler = async event => {
         if (!creator.exists || creator.data().status !== "approved") return json(403, { error: "An approved creator account is required." });
         // Avoid composite-index dependency; sort the bounded result in memory.
         const snap = await db.collection("marketListings").where("creatorUid", "==", context.uid).limit(100).get();
-        const listings = [...snap.docs].filter(doc => !(doc.data().mediaResourceType === "video" && doc.data().mediaProvider !== "api_video")).sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
+        const listings = [...snap.docs].sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
         return json(200, { listings: listings.map(d => ({ id: d.id, ...d.data() })) });
       }
       const username = cleanText(event.queryStringParameters?.u || "", 30).toLowerCase().replace(/^@/, "");
@@ -44,7 +44,7 @@ exports.handler = async event => {
       const creatorProfile = await db.collection("marketCreators").doc(handle.data().uid).get();
       if (!creatorProfile.exists || creatorProfile.data().status !== "approved") return json(404, { error: "Creator not found." });
       const snap = await db.collection("marketListings").where("creatorUid", "==", handle.data().uid).where("status", "==", "published").limit(100).get();
-      const listings = [...snap.docs].sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
+      const listings = [...snap.docs].filter(doc => !(doc.data().mediaResourceType === "video" && doc.data().mediaProvider !== "api_video")).sort((a,b) => (b.data().updatedAt?.toMillis?.() || 0) - (a.data().updatedAt?.toMillis?.() || 0)).slice(0,50);
       return json(200, { listings: listings.map(d => {
         const v = d.data();
         return { id: d.id, title: v.title, description: v.description, offers: v.offers, hasVideo: v.mediaProvider === "api_video" && Boolean(v.videoId), mediaKind: v.mediaKind || (v.mediaResourceType === "video" ? "video" : "image"), durationSeconds: Number(v.durationSeconds || 0), createdAt: v.createdAt?.toDate ? v.createdAt.toDate().toISOString() : null };
