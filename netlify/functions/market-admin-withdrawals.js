@@ -12,11 +12,18 @@ exports.handler = async event => {
     const adminSnap = await db.collection("users").doc(auth.uid).get();
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
     if (event.httpMethod === "GET") {
-      const snap = await db.collection("marketCreatorWithdrawals").where("status", "==", "pending").limit(250).get();
-      const orderedDocs = [...snap.docs].sort((a,b) => (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0)).slice(0,50);
+      const snap = await db.collection("marketCreatorWithdrawals").limit(500).get();
+      const orderedDocs = [...snap.docs].sort((a,b) => (b.data().createdAt?.toMillis?.() || 0) - (a.data().createdAt?.toMillis?.() || 0)).slice(0,250);
+      const creatorIds = [...new Set(orderedDocs.map(doc => doc.data().creatorUid).filter(Boolean))];
+      const creatorSnaps = await Promise.all(creatorIds.map(uid => db.collection("marketCreators").doc(uid).get()));
+      const creators = new Map(creatorSnaps.filter(s => s.exists).map(s => [s.id, s.data()]));
       return json(200, { withdrawals: orderedDocs.map(doc => {
-        const d = doc.data();
-        return { id: doc.id, creatorUid: d.creatorUid, amountTokens: d.amountTokens, method: d.method, payoutDetails: d.payoutDetails, createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null };
+        const d = doc.data(), creator = creators.get(d.creatorUid) || {};
+        return { id: doc.id, creatorUid: d.creatorUid, creatorName: creator.displayName || creator.username || "Creator",
+          creatorUsername: creator.username || "", creatorAvatarUrl: creator.avatarPreviewUrl || creator.avatarUrl || "",
+          amountTokens: d.amountTokens, method: d.method, payoutDetails: d.payoutDetails, status: d.status || "pending",
+          reviewNote: d.reviewNote || "", createdAt: d.createdAt?.toDate ? d.createdAt.toDate().toISOString() : null,
+          reviewedAt: d.reviewedAt?.toDate ? d.reviewedAt.toDate().toISOString() : null };
       })});
     }
     const body = parseBody(event);
