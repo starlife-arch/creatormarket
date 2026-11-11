@@ -52,7 +52,34 @@ exports.handler = async event => {
     }
     const creator = await db.collection("marketCreators").doc(context.uid).get();
     if (!creator.exists || creator.data().status !== "approved" || context.profile.marketCreatorIdentityVerified !== true) return json(403, { error: "An approved creator with verified identity is required to manage listings." });
-    const body = parseBody(event), title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
+    const body = parseBody(event);
+    if (body.action) {
+      const listingId = cleanText(body.listingId, 128);
+      if (!listingId) return json(400, { error: "Listing ID is required." });
+      const listingRef = db.collection("marketListings").doc(listingId), existing = await listingRef.get();
+      if (!existing.exists || existing.data().creatorUid !== context.uid) return json(404, { error: "Your listing was not found." });
+      if (body.action === "delete") {
+        await listingRef.update({ status: "deleted", updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
+        return json(200, { ok: true, status: "deleted" });
+      }
+      if (body.action === "update") {
+        const title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
+        if (title.length < 3 || description.length < 20) return json(400, { error: "Enter a title (at least 3 characters) and description (at least 20 characters)." });
+        const offers = normalizeOffers(body.offers);
+        await listingRef.update({ title, description, offers, updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
+        return json(200, { ok: true, status: existing.data().status });
+      }
+      if (body.action === "status") {
+        const status = cleanText(body.status, 20);
+        if (!["published", "paused"].includes(status)) return json(400, { error: "Choose published or paused status." });
+        const data = existing.data();
+        if (status === "published" && !((data.mediaProvider === "api_video" && data.videoId) || (data.mediaPublicId && data.mediaResourceType !== "video"))) return json(409, { error: "Upload valid private media before publishing this listing." });
+        await listingRef.update({ status, updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
+        return json(200, { ok: true, status });
+      }
+      return json(400, { error: "Unsupported listing management action." });
+    }
+    const title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
     if (title.length < 3 || description.length < 20) return json(400, { error: "Enter a title (at least 3 characters) and description (at least 20 characters)." });
     const offers = normalizeOffers(body.offers), ref = db.collection("marketListings").doc();
     await ref.set({
