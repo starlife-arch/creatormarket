@@ -44,7 +44,7 @@ exports.handler = async event => {
     const gatewayHost = new URL(gatewayUrl).host;
     const ticket = issueVideoTicket({
       aud: gatewayHost, sub: context.uid, listingId, videoId: video.videoId,
-      scope: "upload", iat: Math.floor(now / 1000), expMs: expiresAt
+      scope: "upload", sizeBytes, contentType, iat: Math.floor(now / 1000), expMs: expiresAt
     });
     await db.collection("marketVideoUploadIntents").doc(uploadId).create({
       uid: context.uid, listingId, videoId: video.videoId, contentType, sizeBytes,
