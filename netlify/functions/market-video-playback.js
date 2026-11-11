@@ -81,13 +81,19 @@ exports.handler = async event => {
       ? "/vod/" + videoId + "/token/" + privateToken + "/thumbnail.jpg?avh=" + encodeURIComponent(sessionToken)
       : "/vod/" + videoId + "/token/" + privateToken + "/hls/manifest.m3u8?avh=" + encodeURIComponent(sessionToken);
     const url = gatewayUrl + "/video-gateway?ticket=" + encodeURIComponent(ticket) + "&path=" + encodeURIComponent(base64url(providerPath));
+    const downloadAllowed = !previewOnly && !isOwner && listing.downloadAllowed === true && entitlement?.downloadAllowed === true;
+    let downloadUrl = null;
+    if (downloadAllowed) {
+      const downloadTicket = issueVideoTicket({ ...claims, scope: "download" });
+      const downloadPath = "/vod/" + videoId + "/token/" + privateToken + "/mp4/source.mp4?avh=" + encodeURIComponent(sessionToken);
+      downloadUrl = gatewayUrl + "/video-gateway?ticket=" + encodeURIComponent(downloadTicket) + "&path=" + encodeURIComponent(base64url(downloadPath));
+    }
     return json(200, {
-      ok: true, playbackUrl: url, previewOnly,
+      ok: true, playbackUrl: url, downloadUrl, previewOnly,
       expiresAt: new Date(expiresAt).toISOString(),
       expiresInSeconds: Math.max(0, Math.floor((expiresAt - now) / 1000)),
       contentType: previewOnly ? "image/jpeg" : "application/vnd.apple.mpegurl",
-      title: listing.title, description: listing.description,
-      downloadAllowed: !previewOnly && !isOwner && listing.downloadAllowed === true && entitlement?.downloadAllowed === true
+      title: listing.title, description: listing.description, downloadAllowed
     });
   } catch (error) {
     if (error.message?.startsWith("APIVIDEO_")) {
