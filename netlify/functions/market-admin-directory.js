@@ -12,11 +12,13 @@ exports.handler = async event => {
     if (!adminSnap.exists || !isAdmin(adminSnap.data())) return json(403, { error: "Administrator access required." });
 
     if (event.httpMethod === "GET") {
-      const [usersSnap, creatorsSnap, listingsSnap, balancesSnap] = await Promise.all([
+      const [usersSnap, creatorsSnap, listingsSnap, balancesSnap, entitlementsSnap, purchasesSnap] = await Promise.all([
         db.collection("users").limit(500).get(),
         db.collection("marketCreators").limit(300).get(),
         db.collection("marketListings").limit(500).get(),
-        db.collection("marketCreatorBalances").limit(300).get()
+        db.collection("marketCreatorBalances").limit(300).get(),
+        db.collection("marketEntitlements").limit(1000).get(),
+        db.collection("marketPurchases").limit(1000).get()
       ]);
       const balances = new Map(balancesSnap.docs.map(d => [d.id, d.data()]));
       const creators = creatorsSnap.docs.map(doc => {
@@ -29,6 +31,8 @@ exports.handler = async event => {
       const marketUserIds = new Set();
       creators.forEach(c => marketUserIds.add(c.uid));
       listingsSnap.docs.forEach(d => { const uid = d.data().creatorUid; if (uid) marketUserIds.add(uid); });
+      entitlementsSnap.docs.forEach(d => { const uid = d.data().buyerUid; if (uid) marketUserIds.add(uid); });
+      purchasesSnap.docs.forEach(d => { const uid = d.data().buyerUid; if (uid) marketUserIds.add(uid); });
       usersSnap.docs.forEach(d => {
         const u = d.data();
         if (u.marketAgeVerified === true || u.marketAgeVerificationStatus || u.marketCreatorApplication || u.marketCreatorIdentityVerified === true) marketUserIds.add(d.id);
