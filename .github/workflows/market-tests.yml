@@ -16,4 +16,5 @@ jobs:
           node-version: 20
       - run: npm install --ignore-scripts
       - run: find netlify/functions -name '*.js' -print0 | xargs -0 -n1 node --check
+      - run: node --check cloudflare/market-video-gateway/src/index.js
       - run: npm test
