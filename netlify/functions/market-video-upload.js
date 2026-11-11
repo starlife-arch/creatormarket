@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { json, parseBody } = require("./_market-auth");
+const { json, parseBody, readCookie, verifySession } = require("./_market-auth");
 const { loadEligibleUser, cleanText } = require("./_market-data");
 const { issueVideoTicket } = require("./_market-video-ticket");
 
@@ -9,6 +9,8 @@ exports.handler = async event => {
   try {
     const context = await loadEligibleUser(event);
     if (context.error) return context.error;
+    const marketSession = verifySession(readCookie(event, "dv_market_session"));
+    if (!marketSession || marketSession.sub !== context.uid || !marketSession.jti) return json(401, { error: "Your Market session has expired. Sign in again." });
     if (context.profile.marketCreatorIdentityVerified !== true) return json(403, { error: "Verified creator identity is required to upload video." });
     const body = parseBody(event);
     const listingId = cleanText(body.listingId, 128);
@@ -43,7 +45,7 @@ exports.handler = async event => {
     const uploadId = crypto.randomUUID(), now = Date.now(), expiresAt = now + 60 * 60 * 1000;
     const gatewayHost = new URL(gatewayUrl).host;
     const ticket = issueVideoTicket({
-      aud: gatewayHost, sub: context.uid, listingId, videoId: video.videoId,
+      aud: gatewayHost, sub: context.uid, sessionJti: marketSession.jti, listingId, videoId: video.videoId,
       scope: "upload", sizeBytes, contentType, iat: Math.floor(now / 1000), expMs: expiresAt
     });
     await db.collection("marketVideoUploadIntents").doc(uploadId).create({
