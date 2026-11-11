@@ -24,7 +24,7 @@ exports.handler = async event => {
     const db = context.admin.firestore();
     const listingRef = db.collection("marketListings").doc(listingId);
     const listingSnap = await listingRef.get();
-    if (!listingSnap.exists || listingSnap.data().creatorUid !== context.uid || listingSnap.data().status !== "draft") return json(404, { error: "Creator draft listing not found." });
+    if (!listingSnap.exists || listingSnap.data().creatorUid !== context.uid || (listingSnap.data().status !== "draft" && !(listingSnap.data().status === "published" && listingSnap.data().mediaResourceType === "video" && listingSnap.data().mediaProvider !== "api_video"))) return json(404, { error: "Creator draft or legacy video listing not found." });
     const listing = listingSnap.data();
     const response = await fetch("https://ws.api.video/videos", {
       method: "POST",
