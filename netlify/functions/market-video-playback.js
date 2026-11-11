@@ -62,7 +62,9 @@ exports.handler = async event => {
     const match = hls.match(/\/vod\/[^/]+\/token\/([^/]+)\/hls\/manifest\.m3u8/);
     if (!match) return json(502, { error: "The video provider did not return a private playback token." });
     const privateToken = match[1];
-    const sessionData = await apiVideoGet("/vod/" + encodeURIComponent(videoId) + "/token/" + encodeURIComponent(privateToken) + "/session", apiKey);
+    const sessionResponse = await fetch("https://vod.api.video/vod/" + encodeURIComponent(videoId) + "/token/" + encodeURIComponent(privateToken) + "/session", { signal: AbortSignal.timeout(10000) });
+    const sessionData = await sessionResponse.json().catch(() => ({}));
+    if (!sessionResponse.ok) throw new Error("APIVIDEO_SESSION_" + sessionResponse.status);
     const sessionToken = String(sessionData.session_token || "");
     if (!sessionToken) return json(502, { error: "The video provider did not create a playback session." });
 
@@ -72,7 +74,7 @@ exports.handler = async event => {
     const claims = {
       aud: new URL(gatewayUrl).host, sub: context.uid, listingId, videoId,
       privateToken, sessionToken, scope: previewOnly ? "preview" : "playback",
-      iat: Math.floor(now / 1000), exp: Math.floor(expiresAt / 1000)
+      iat: Math.floor(now / 1000), exp: Math.floor(expiresAt / 1000), expMs: expiresAt
     };
     const ticket = issueVideoTicket(claims);
     const providerPath = previewOnly
