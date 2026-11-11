@@ -246,6 +246,7 @@ exports.handler = async event => {
     }
     return json(400, { error: "Unsupported verification action." });
   } catch (error) {
+    if (error.message === "DIDIT_ALREADY_IN_PROGRESS") return json(409, { error: "An automatic Didit verification is already in progress. Complete it or wait for the result before switching to manual review." });
     if (error.message === "CLOUDINARY_URL is not configured") return json(503, { error: "Secure evidence storage is not configured yet." });
     if (error.message === "REQUEST_NOT_ACTIVE") return json(409, { error: "This verification request is no longer active." });
     console.error("Market age verification failed:", error.message);
