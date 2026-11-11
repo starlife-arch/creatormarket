@@ -45,10 +45,12 @@ exports.handler = async event => {
     const isOwner = listing.creatorUid === context.uid;
     let entitlement = null;
     if (!previewOnly && !isOwner) {
-      const snap = await db.collection("marketEntitlements").where("buyerUid", "==", context.uid)
-        .where("listingId", "==", listingId).where("status", "==", "active").limit(10).get();
+      let snap = await db.collection("users").doc(context.uid).collection("marketEntitlements")
+        .where("listingId", "==", listingId).get();
+      if (!snap.docs.length) snap = await db.collection("marketEntitlements").where("buyerUid", "==", context.uid).get();
       const now = Date.now();
       entitlement = snap.docs.map(doc => doc.data()).find(item => {
+        if (item.listingId !== listingId || item.status !== "active") return false;
         const exp = item.expiresAt?.toDate ? item.expiresAt.toDate().getTime() : item.expiresAt ? new Date(item.expiresAt).getTime() : null;
         return !exp || exp > now;
       });
