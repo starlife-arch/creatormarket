@@ -74,6 +74,11 @@ exports.handler = async event => {
         downloadAllowed: listing.downloadAllowed === true, status: "active",
         purchaseId, createdAt: context.admin.firestore.FieldValue.serverTimestamp()
       });
+      tx.create(buyerRef.collection("marketEntitlements").doc(entitlementId), {
+        listingId, purchaseId, expiresAt: expiresAt ? context.admin.firestore.Timestamp.fromDate(expiresAt) : null,
+        downloadAllowed: listing.downloadAllowed === true, status: "active",
+        createdAt: context.admin.firestore.FieldValue.serverTimestamp()
+      });
       tx.set(walletTxRef, { type: "market_purchase", amount: gross, listingId, creatorUid: listing.creatorUid, note: "Creator Market purchase", status: "completed", createdAt: context.admin.firestore.FieldValue.serverTimestamp() });
       tx.set(creatorLedgerRef, { type: "sale_credit", purchaseId, listingId, buyerUid: context.uid, grossTokens: gross, platformFeeTokens: platformFee, netTokens: creatorNet, createdAt: context.admin.firestore.FieldValue.serverTimestamp() });
       tx.set(platformLedgerRef, { type: "market_commission", purchaseId, listingId, buyerUid: context.uid, creatorUid: listing.creatorUid, grossTokens: gross, platformFeeTokens: platformFee, creatorNetTokens: creatorNet, createdAt: context.admin.firestore.FieldValue.serverTimestamp() });
