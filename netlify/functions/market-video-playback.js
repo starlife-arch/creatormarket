@@ -43,8 +43,6 @@ exports.handler = async event => {
     const listing = listingSnap.data();
     if (previewOnly && listing.status !== "published") return json(404, { error: "This content is unavailable." });
     if (listing.mediaProvider !== "api_video" || !listing.videoId) return json(409, { error: "This listing is not yet using secure api.video playback." });
-    const creatorSnap = await db.collection("marketCreators").doc(listing.creatorUid).get();
-    if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "This content is unavailable." });
     const isOwner = listing.creatorUid === context.uid;
     let entitlement = null;
     if (!previewOnly && !isOwner) {
@@ -62,6 +60,9 @@ exports.handler = async event => {
         entitlement = findActive(legacy.docs);
       }
       if (!entitlement) return json(403, { error: "Purchase an access offer to watch this video." });
+    } else if (previewOnly || isOwner) {
+      const creatorSnap = await db.collection("marketCreators").doc(listing.creatorUid).get();
+      if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "This content is unavailable." });
     }
     const videoId = String(listing.videoId);
     if (!/^[A-Za-z0-9_-]{6,80}$/.test(videoId)) return json(409, { error: "The stored video reference is invalid." });
