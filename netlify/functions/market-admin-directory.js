@@ -25,6 +25,7 @@ exports.handler = async event => {
         const d = doc.data(), b = balances.get(doc.id) || {};
         return { uid: doc.id, username: d.username || "", displayName: d.displayName || d.username || "Creator",
           status: d.status || "unknown", category: d.category || "", verified: d.verified === true,
+          avatarUrl: d.avatarPreviewUrl || d.avatarUrl || "",
           availableTokens: Number(b.availableTokens || 0), reservedTokens: Number(b.reservedTokens || 0),
           lifetimeEarnedTokens: Number(b.lifetimeEarnedTokens || 0), lifetimeWithdrawnTokens: Number(b.lifetimeWithdrawnTokens || 0) };
       });
@@ -49,7 +50,7 @@ exports.handler = async event => {
         return { id: doc.id, title: d.title || "Untitled listing", description: d.description || "",
           status: d.status || "unknown", mediaKind: d.mediaKind || (d.mediaResourceType === "video" ? "video" : "image"),
           mediaProvider: d.mediaProvider || "", creatorUid: d.creatorUid || "", creatorUsername: creator.username || d.creatorUsername || "",
-          creatorName: creator.displayName || "", offers: (d.offers || []).map(o => ({ label: o.label || o.type, priceTokens: Number(o.priceTokens || 0) })) };
+          creatorName: creator.displayName || "", creatorAvatarUrl: creator.avatarUrl || "", offers: (d.offers || []).map(o => ({ label: o.label || o.type, priceTokens: Number(o.priceTokens || 0) })) };
       }).sort((a,b) => a.title.localeCompare(b.title));
       return json(200, { users, creators, listings });
     }
