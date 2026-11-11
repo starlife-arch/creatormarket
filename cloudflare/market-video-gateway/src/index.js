@@ -22,6 +22,26 @@ async function decryptTicket(ticket, secret) {
   const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, combined);
   return JSON.parse(new TextDecoder().decode(plain));
 }
+async function verifyMarketSession(request, claims, env) {
+  const secret = String(env.MARKET_SESSION_SECRET || "");
+  if (secret.length < 32 || !claims.sessionJti) return false;
+  const cookieHeader = request.headers.get("cookie") || "";
+  const entry = cookieHeader.split(";").map(value => value.trim()).find(value => value.startsWith("dv_market_session="));
+  if (!entry) return false;
+  let token;
+  try { token = decodeURIComponent(entry.slice("dv_market_session=".length)); } catch (_) { return false; }
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return false;
+  let payload;
+  try { payload = JSON.parse(new TextDecoder().decode(decodeBase64Url(parts[1]))); } catch (_) { return false; }
+  try {
+    const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+    const signature = decodeBase64Url(parts[2]);
+    const valid = await crypto.subtle.verify("HMAC", key, signature, encoder.encode(parts[0] + "." + parts[1]));
+    return valid && payload.sub === claims.sub && payload.jti === claims.sessionJti &&
+      payload.aud === "https://market.elysiandate.site" && Number.isFinite(payload.exp) && payload.exp > Date.now() / 1000;
+  } catch (_) { return false; }
+}
 async function signValidationBody(body, secret) {
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(body)));
@@ -71,9 +91,10 @@ async function handleUpload(request, env) {
   try {
     claims = await decryptTicket(incoming.searchParams.get("ticket"), env.MARKET_VIDEO_GATEWAY_SECRET);
     if (claims.aud !== incoming.host || claims.scope !== "upload" || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This upload authorization has expired");
-    if (!claims.videoId || !claims.listingId || !claims.sub || !Number.isSafeInteger(claims.sizeBytes) || claims.sizeBytes < 1 || claims.sizeBytes > 500 * 1024 * 1024 || !["video/mp4", "video/webm"].includes(claims.contentType)) return error(403, "Invalid upload authorization");
+    if (!claims.videoId || !claims.listingId || !claims.sub || !claims.sessionJti || !Number.isSafeInteger(claims.sizeBytes) || claims.sizeBytes < 1 || claims.sizeBytes > 500 * 1024 * 1024 || !["video/mp4", "video/webm"].includes(claims.contentType)) return error(403, "Invalid upload authorization");
     if (!/^[A-Za-z0-9_-]{6,80}$/.test(claims.videoId)) return error(403, "Invalid video reference");
   } catch (_) { return error(403, "Invalid upload authorization"); }
+  if (!(await verifyMarketSession(request, claims, env))) return error(401, "A matching signed-in Market session is required");
   const contentRange = request.headers.get("content-range") || "";
   if (contentRange) {
     if (!/^bytes \d+-\d+\/\d+$/.test(contentRange)) return error(400, "A valid byte Content-Range is required");
@@ -120,13 +141,15 @@ async function handle(request, env) {
   try {
     claims = await decryptTicket(incoming.searchParams.get("ticket"), env.MARKET_VIDEO_GATEWAY_SECRET);
     if (claims.aud !== incoming.host || !Number.isFinite(claims.expMs) || claims.expMs <= Date.now()) return error(410, "This rental has expired");
-    if (!claims.videoId || !claims.privateToken || !claims.sessionToken || !claims.listingId || !["preview", "playback", "download"].includes(claims.scope)) return error(403, "Invalid playback authorization");
+    if (!claims.videoId || !claims.privateToken || !claims.sessionToken || !claims.listingId || !claims.sessionJti || !["preview", "playback", "download"].includes(claims.scope)) return error(403, "Invalid playback authorization");
     const path = new TextDecoder().decode(decodeBase64Url(incoming.searchParams.get("path") || ""));
     providerUrl = allowedProviderUrl("https://vod.api.video" + path, claims);
     if (claims.scope === "preview" && !providerUrl.pathname.endsWith("/thumbnail.jpg")) return error(403, "Preview access only");
     if (claims.scope === "playback" && !providerUrl.pathname.endsWith("/hls/manifest.m3u8") && !providerUrl.pathname.includes("/hls/")) return error(403, "HLS playback only");
     if (claims.scope === "download" && !providerUrl.pathname.endsWith("/mp4/source.mp4")) return error(403, "Download access only");
   } catch (_) { return error(403, "Invalid or expired playback authorization"); }
+
+  if (!(await verifyMarketSession(request, claims, env))) return error(401, "A matching signed-in Market session is required");
 
   const entitlementCheck = await validateEntitlement(claims, env);
   if (!entitlementCheck.ok) return error(entitlementCheck.status, entitlementCheck.status === 503 ? "Market authorization service is unavailable" : "Your Market access is no longer active");
