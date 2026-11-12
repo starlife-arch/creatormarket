@@ -36,7 +36,7 @@ async function loadMarketUser(event) {
   }
   return {
     uid: auth.uid, profile, admin,
-    ageVerificationRequired: !isAdmin(profile) && profile.marketAgeVerified !== true
+    ageVerificationRequired: !isAdmin(profile) && (profile.verificationStatus === "reverification_requested" || profile.marketAgeVerified !== true)
   };
 }
 
