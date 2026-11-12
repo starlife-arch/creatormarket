@@ -66,3 +66,14 @@ test("Market requires a new age review only when DateVault explicitly requests r
   assert.match(source, /context\.profile\.marketAgeVerified === true && context\.profile\.verificationStatus !== "reverification_requested"/);
   assert.match(source, /dateVaultApproved/);
 });
+
+
+test("Market mobile drawer has explicit accessible open and close behavior", () => {
+  const workspace = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.css"), "utf8");
+  assert.match(workspace, /aria-expanded/);
+  assert.match(workspace, /aside\.querySelectorAll\("a\.market-nav-link"\)/);
+  assert.match(workspace, /event\.key==="Escape"/);
+  assert.match(css, /\.market-shell\.menu-open \.market-sidebar/);
+  assert.match(css, /\.market-sidebar nav\{display:block/);
+});
