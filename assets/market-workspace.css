@@ -85,3 +85,5 @@ body.market-workspace{min-height:100vh;background:radial-gradient(ellipse at 72%
 @media(max-width:980px){.market-metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:720px){.market-data-grid{grid-template-columns:1fr}.market-data-row{align-items:flex-start}.market-data-row>strong{text-align:right}}
 @media(max-width:390px){.market-metric-grid{grid-template-columns:1fr 1fr}.market-data-card{padding:15px}.market-actions>*{max-width:100%}}
+
+.market-announcement{margin:0 0 16px;padding:13px 16px;border:1px solid #35d6ae55;border-radius:12px;background:#35d6ae12;color:#d6fff2;font-size:13px;line-height:1.55}
