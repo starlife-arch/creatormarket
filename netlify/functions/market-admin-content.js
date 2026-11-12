@@ -49,6 +49,7 @@ exports.handler = async event => {
     }
     const status = action === "approve" || action === "restore" ? "published" : "hidden";
     await ref.update({ status, reviewStatus: action === "approve" ? "approved" : action === "reject" ? "rejected" : action === "hide" ? "hidden" : "approved",
+      moderationLocked: action === "reject" || action === "hide" ? true : false,
       moderationNote: note, reviewedBy: auth.uid, reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp() });
     await db.collection("marketAdminAudit").add({
