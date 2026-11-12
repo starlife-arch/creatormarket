@@ -114,3 +114,14 @@ test("buyer transaction history is cursor-paginated rather than capped to one sh
   assert.match(workspace, /marketLoadMore/);
   assert.match(workspace, /view=buyer&cursor=/);
 });
+
+
+test("admin earnings reports are computed from the platform ledger and preserve the 85/15 split", () => {
+  const data = fs.readFileSync(path.join(root, "netlify/functions/market-workspace-data.js"), "utf8");
+  const workspace = fs.readFileSync(path.join(root, "assets/market-workspace.js"), "utf8");
+  assert.match(data, /collection\("marketPlatformLedger"\)/);
+  assert.match(data, /platformFeeTokens: entries\.reduce/);
+  assert.match(workspace, /view=admin-earnings/);
+  assert.match(workspace, /Creator earnings · 85%/);
+  assert.match(workspace, /Platform commission · 15%/);
+});
