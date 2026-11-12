@@ -104,3 +104,13 @@ test("admin rejection and hiding cannot be bypassed by creator republishing", ()
   assert.match(adminContent, /moderationLocked: action === "reject" \|\| action === "hide" \? true : false/);
   assert.match(creatorListings, /data\.moderationLocked === true/);
 });
+
+
+test("buyer transaction history is cursor-paginated rather than capped to one short list", () => {
+  const data = fs.readFileSync(path.join(root, "netlify/functions/market-workspace-data.js"), "utf8");
+  const workspace = fs.readFileSync(path.join(root, "assets/market-workspace.js"), "utf8");
+  assert.match(data, /orderBy\("createdAt", "desc"\)\.limit\(50\)/);
+  assert.match(data, /nextCursor: txSnap\.docs\.length === 50/);
+  assert.match(workspace, /marketLoadMore/);
+  assert.match(workspace, /view=buyer&cursor=/);
+});
