@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 process.env.MARKET_SESSION_SECRET = "test-only-secret-with-more-than-32-characters";
 process.env.MARKET_ORIGIN = "https://market.example.test";
@@ -72,7 +74,7 @@ test("Market mobile drawer has explicit accessible open and close behavior", () 
   const workspace = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.js"), "utf8");
   const css = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.css"), "utf8");
   assert.match(workspace, /aria-expanded/);
-  assert.match(workspace, /aside\.querySelectorAll\("a\.market-nav-link"\)/);
+  assert.ok(workspace.includes('aside.querySelectorAll("a.market-nav-link")'));
   assert.match(workspace, /event\.key==="Escape"/);
   assert.match(css, /\.market-shell\.menu-open \.market-sidebar/);
   assert.match(css, /\.market-sidebar nav\{display:block/);
