@@ -8,6 +8,11 @@ exports.handler = async event => {
     // are checked before publishing/uploading, not before submitting an application.
     const context = await loadMarketUser(event);
     if (context.error) return context.error;
+    const db = context.admin.firestore();
+    const platformSettings = await db.collection("marketSettings").doc("platform").get();
+    if (platformSettings.exists && platformSettings.data().creatorApplicationsEnabled === false) {
+      return json(403, { error: "New creator applications are temporarily paused. Please check back later." });
+    }
     const body = parseBody(event);
     const username = cleanText(body.username, 30).toLowerCase().replace(/^@/, "");
     const displayName = cleanText(body.displayName, 60);
@@ -18,7 +23,7 @@ exports.handler = async event => {
     if (!validUsername(username)) return json(400, { error: "Username must be 3–30 characters, use letters, numbers or underscores, and cannot start or end with an underscore." });
     if (!displayName) return json(400, { error: "Enter a public display name." });
     if (bio.length < 20) return json(400, { error: "Please write a short creator bio of at least 20 characters." });
-    const db = context.admin.firestore(), applicationRef = db.collection("marketCreatorApplications").doc(context.uid);
+    const applicationRef = db.collection("marketCreatorApplications").doc(context.uid);
     const existing = await applicationRef.get();
     if (existing.exists && ["pending", "approved"].includes(existing.data().status)) {
       return json(409, { error: "You already have a pending or approved creator application." });
