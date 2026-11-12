@@ -88,3 +88,19 @@ test("discovery and creator profiles expose save actions for creators and listin
   assert.match(creator, /data-save-type="creator"/);
   assert.match(creator, /data-save-type="listing"/);
 });
+
+
+test("wallet purchase debits are displayed as outgoing and platform announcements are surfaced", () => {
+  const data = fs.readFileSync(path.join(root, "netlify/functions/market-workspace-data.js"), "utf8");
+  const discover = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.match(data, /t\.type === "market_purchase" \? -Math\.abs\(rawAmount\) : rawAmount/);
+  assert.match(data, /view === "public-settings"/);
+  assert.match(discover, /market-workspace-data\?view=public-settings/);
+});
+
+test("admin rejection and hiding cannot be bypassed by creator republishing", () => {
+  const adminContent = fs.readFileSync(path.join(root, "netlify/functions/market-admin-content.js"), "utf8");
+  const creatorListings = fs.readFileSync(path.join(root, "netlify/functions/market-listings.js"), "utf8");
+  assert.match(adminContent, /moderationLocked: action === "reject" \|\| action === "hide" \? true : false/);
+  assert.match(creatorListings, /data\.moderationLocked === true/);
+});
