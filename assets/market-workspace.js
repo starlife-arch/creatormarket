@@ -20,11 +20,11 @@ const groups=cfg.groups.map(g=>'<div class="market-nav-group"><div class="market
 aside.innerHTML='<a class="market-brand" href="/discover"><span class="market-brand-mark">M</span><span>DATEVAULT <span style="color:#35d6ae">MARKET</span><small>'+cfg.label.toUpperCase()+'</small></span></a><nav>'+groups+'</nav><div class="market-sidebar-bottom"><a class="market-nav-link" href="https://elysiandate.site"><span class="market-nav-icon">↗</span><span>Back to DateVault</span></a></div>';
 const main=document.createElement("div");main.className="market-main";
 const top=document.createElement("div");top.className="market-topbar";
-top.innerHTML='<div style="display:flex;align-items:center;gap:12px"><button class="market-mobile-menu" type="button" aria-label="Open navigation">☰</button><div><div class="market-top-title">'+title+'</div><div class="market-top-subtitle">'+cfg.label+'</div></div></div><div class="market-top-actions"><span class="market-status">● Secure workspace</span><a class="market-top-link" href="/member">My Market</a></div>';
+top.innerHTML='<div style="display:flex;align-items:center;gap:12px"><button class="market-mobile-menu" type="button" aria-label="Open navigation">☰</button><div><div class="market-top-title">'+title+'</div><div class="market-top-subtitle">'+cfg.label+'</div></div></div><div class="market-top-actions"><span class="market-status">● Secure workspace</span><a class="market-top-link" href="/member">My Market</a><button class="market-top-link" id="marketSignOut" type="button">Sign out</button></div>';
 const page=document.createElement("div");page.className="market-page";
 if(oldMain){page.appendChild(oldMain);main.append(top,page);}else main.append(top,page);
 shell.append(overlay,aside,main);body.insertBefore(shell,body.firstChild);
-const menu=()=>shell.classList.toggle("menu-open");top.querySelector("button").addEventListener("click",menu);overlay.addEventListener("click",menu);
+const menu=()=>shell.classList.toggle("menu-open");top.querySelector(".market-mobile-menu").addEventListener("click",menu);overlay.addEventListener("click",menu);top.querySelector("#marketSignOut").addEventListener("click",async()=>{const b=top.querySelector("#marketSignOut");b.disabled=true;b.textContent="Signing out…";try{await fetch("/api/market-logout",{method:"POST",credentials:"same-origin"});}finally{location.href="https://elysiandate.site";}});
 const style=document.createElement("link");style.rel="stylesheet";style.href="/assets/market-workspace.css";document.head.appendChild(style);
 
 // Reuse existing page sections as independently addressable workspace views.
@@ -47,7 +47,7 @@ if(role==="creator"){
   const first=document.querySelector("main>section.panel");if(first)first.dataset.studioIntro="1";
   const view=current==="/studio"? "overview":current.split("/")[2];
   if(view==="overview"){panels.forEach(n=>n.hidden=true);if(first)first.hidden=false;overview.style.marginBottom="18px";tools.prepend(overview);}
-  else if(["profile","content","upload","earnings"].includes(view)){if(first)first.hidden=true;panels.forEach(n=>n.hidden=n.dataset.studioView!==view);}
+  else if(["profile","content","upload","earnings"].includes(view)){if(first)first.hidden=true;panels.forEach(n=>n.hidden=n.dataset.studioView!==view&&!(view==="upload"&&n.dataset.studioView==="content"));}
   else if(view==="drafts"){if(first)first.hidden=true;panels.forEach(n=>n.hidden=n.dataset.studioView!=="content");const observer=new MutationObserver(()=>{document.querySelectorAll("#listings [data-listing-card]").forEach(card=>{const status=card.querySelector(".withdrawal-status")?.textContent?.trim().toLowerCase();card.hidden=status!=="draft";});});observer.observe(listingsBox,{childList:true,subtree:true});}
   else if(view==="verification"){panels.forEach(n=>n.hidden=true);if(first)first.hidden=false;document.getElementById("identitySection")?.removeAttribute("hidden");document.getElementById("verifyAge")?.removeAttribute("hidden");}
   else placeholder("This Creator Studio module is on the roadmap. Your current listing, upload, verification and earnings tools remain available from their dedicated workspace pages.");
