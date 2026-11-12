@@ -110,7 +110,7 @@ exports.handler = async event => {
       });
       return json(200, { ok: true, settings });
     }
-    if (view === "admin-audit" || view === "admin-settings") {
+    if (view === "admin-audit" || view === "admin-settings" || view === "admin-earnings") {
       const context = await adminContext(event);
       if (context.error) return context.error;
       if (view === "admin-settings") {
