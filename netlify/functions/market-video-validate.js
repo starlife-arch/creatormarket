@@ -18,7 +18,7 @@ exports.handler = async event => {
     const body = parseBody(event);
     const uid = String(body.uid || ""), listingId = String(body.listingId || ""), videoId = String(body.videoId || "");
     const scope = String(body.scope || ""), expMs = Number(body.expMs);
-    if (!uid || !listingId || !videoId || !["preview", "playback", "download"].includes(scope) || !Number.isFinite(expMs) || expMs <= Date.now()) {
+    if (!uid || !listingId || !videoId || !["preview", "playback", "download", "admin_review"].includes(scope) || !Number.isFinite(expMs) || expMs <= Date.now()) {
       return json(403, { error: "Playback authorization has expired." });
     }
     const admin = getAdmin(), db = admin.firestore();
@@ -28,8 +28,14 @@ exports.handler = async event => {
     ]);
     if (!userSnap.exists || !listingSnap.exists) return json(403, { error: "Market access is unavailable." });
     const user = userSnap.data() || {}, listing = listingSnap.data() || {};
-    if (user.marketAgeVerified !== true || user.banned || user.suspended || user.accountSuspended || user.marketBanned === true) return json(403, { error: "Age verification or account access is no longer valid." });
+    const adminReview = scope === "admin_review" && (user.role === "admin" || user.isAdmin === true);
+    if (!adminReview && (user.marketAgeVerified !== true || user.banned || user.suspended || user.accountSuspended || user.marketBanned === true)) return json(403, { error: "Age verification or account access is no longer valid." });
     if (listing.mediaProvider !== "api_video" || listing.videoId !== videoId) return json(403, { error: "This video is no longer available." });
+    if (adminReview) {
+      if (listing.status === "deleted" || expMs > Date.now() + 6 * 60 * 1000) return json(403, { error: "The private review authorization is invalid." });
+      return json(200, { ok: true });
+    }
+    if (scope === "admin_review") return json(403, { error: "Administrator access required." });
     if (scope === "preview") {
       if (listing.status !== "published") return json(403, { error: "This video is no longer available for preview." });
       const creatorSnap = await db.collection("marketCreators").doc(listing.creatorUid).get();

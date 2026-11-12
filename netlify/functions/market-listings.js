@@ -74,11 +74,16 @@ exports.handler = async event => {
         const status = cleanText(body.status, 20);
         if (!["published", "paused"].includes(status)) return json(400, { error: "Choose published or paused status." });
         const data = existing.data();
+        if (status === "published" && data.moderationLocked === true) return json(403, { error: "This listing is locked by Market moderation. Contact support or wait for an administrator review." });
         if (status === "published" && !((data.mediaProvider === "api_video" && data.videoId) || (data.mediaPublicId && data.mediaResourceType !== "video"))) return json(409, { error: "Upload valid private media before publishing this listing." });
         await listingRef.update({ status, updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
         return json(200, { ok: true, status });
       }
       return json(400, { error: "Unsupported listing management action." });
+    }
+    const platformSettings = await db.collection("marketSettings").doc("platform").get();
+    if (platformSettings.exists && platformSettings.data().newListingsEnabled === false) {
+      return json(403, { error: "New creator listings are temporarily paused. Existing listings and purchases remain available." });
     }
     const title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
     if (title.length < 3 || description.length < 20) return json(400, { error: "Enter a title (at least 3 characters) and description (at least 20 characters)." });
