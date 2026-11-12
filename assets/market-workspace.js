@@ -1,5 +1,5 @@
 (()=>{
-const path=location.pathname.replace(/\\/+$/,"")||"/";
+const path=location.pathname.replace(/\/+$/,"")||"/";
 const configs={
  buyer:{label:"Buyer workspace",title:"DateVault Market",groups:[{label:"Market",items:[["Discover","/discover","◈"],["Search","/search","⌕"],["My Library","/library","▣"],["Saved","/saved","♡"]]},{label:"Your account",items:[["Wallet","/wallet","◉"],["Transactions","/transactions","↔"],["My Profile","/profile","○"]]},{label:"Workspace",items:[["Creator Studio","/studio","✧"]]}]},
  creator:{label:"Creator workspace",title:"Creator Studio",groups:[{label:"Studio",items:[["Overview","/studio","⌂"]]},{label:"Content management",items:[["Upload content","/studio/upload","＋"],["My content","/studio/content","▤"],["Drafts","/studio/drafts","▧"],["Performance","/studio/performance","↗"]]},{label:"Finances",items:[["Earnings","/studio/earnings","◉"],["Withdrawals","/studio/withdrawals","⇧"],["Sales & transactions","/studio/sales","↔"]]},{label:"Creator account",items:[["Public profile","/studio/profile","◎"],["Identity verification","/studio/verification","✓"],["Settings","/studio/settings","⚙"]]}]},
