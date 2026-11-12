@@ -33,3 +33,58 @@ test("creator reporting uses an inline form rather than browser prompts", () => 
   assert.match(html, /marketReportReason/);
   assert.doesNotMatch(html, /\b(prompt|confirm|alert)\s*\(/);
 });
+
+
+test("buyer saved, wallet and transaction routes are backed by dedicated workspace APIs", () => {
+  const workspace = fs.readFileSync(path.join(root, "assets/market-workspace.js"), "utf8");
+  const saved = fs.readFileSync(path.join(root, "netlify/functions/market-saved.js"), "utf8");
+  const data = fs.readFileSync(path.join(root, "netlify/functions/market-workspace-data.js"), "utf8");
+  assert.match(workspace, /renderBuyerWorkspace/);
+  assert.match(workspace, /\/api\/market-saved/);
+  assert.match(workspace, /\/api\/market-workspace-data\?view=buyer/);
+  assert.match(saved, /collection\("marketSaved"\)/);
+  assert.match(data, /walletTransactions/);
+});
+
+test("creator performance, sales, withdrawals and profile settings use creator-owned data", () => {
+  const workspace = fs.readFileSync(path.join(root, "assets/market-workspace.js"), "utf8");
+  const data = fs.readFileSync(path.join(root, "netlify/functions/market-workspace-data.js"), "utf8");
+  const settings = fs.readFileSync(path.join(root, "netlify/functions/market-creator-settings.js"), "utf8");
+  assert.match(workspace, /renderCreatorWorkspace/);
+  assert.match(workspace, /view==="performance"/);
+  assert.match(workspace, /view==="sales"/);
+  assert.match(data, /marketCreatorLedger/);
+  assert.match(data, /marketPurchases/);
+  assert.match(settings, /marketCreatorIdentityVerified/);
+});
+
+test("admin audit, settings and private content review are administrator protected", () => {
+  const workspace = fs.readFileSync(path.join(root, "assets/market-workspace.js"), "utf8");
+  const data = fs.readFileSync(path.join(root, "netlify/functions/market-workspace-data.js"), "utf8");
+  const content = fs.readFileSync(path.join(root, "netlify/functions/market-admin-content.js"), "utf8");
+  const playback = fs.readFileSync(path.join(root, "netlify/functions/market-video-playback.js"), "utf8");
+  const validate = fs.readFileSync(path.join(root, "netlify/functions/market-video-validate.js"), "utf8");
+  const gateway = fs.readFileSync(path.join(root, "cloudflare/market-video-gateway/src/index.js"), "utf8");
+  assert.match(workspace, /renderAdminWorkspace/);
+  assert.match(data, /adminContext\(event\)/);
+  assert.match(data, /marketAdminAudit/);
+  assert.match(content, /isAdmin\(adminSnap\.data\(\)\)/);
+  assert.match(playback, /scope: reviewOnly \? "admin_review"/);
+  assert.match(validate, /scope === "admin_review"/);
+  assert.match(gateway, /"admin_review"/);
+});
+
+test("admin settings are enforced when new creator applications or listings are paused", () => {
+  const applications = fs.readFileSync(path.join(root, "netlify/functions/market-creator-application.js"), "utf8");
+  const listings = fs.readFileSync(path.join(root, "netlify/functions/market-listings.js"), "utf8");
+  assert.match(applications, /creatorApplicationsEnabled === false/);
+  assert.match(listings, /newListingsEnabled === false/);
+});
+
+test("discovery and creator profiles expose save actions for creators and listings", () => {
+  const discover = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  const creator = fs.readFileSync(path.join(root, "creator.html"), "utf8");
+  assert.match(discover, /data-save-type="creator"/);
+  assert.match(creator, /data-save-type="creator"/);
+  assert.match(creator, /data-save-type="listing"/);
+});
