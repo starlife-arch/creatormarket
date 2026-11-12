@@ -51,3 +51,18 @@ test("month rentals clamp month-end dates instead of overflowing", () => {
 test("permanent access has no expiry", () => {
   assert.equal(expiryFor({ type: "permanent" }, Date.now()), null);
 });
+
+
+test("DateVault member approval is reused as Market age verification", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/_market-data.js"), "utf8");
+  assert.match(source, /profile\.status === "active_member"/);
+  assert.match(source, /profile\.verificationStatus !== "reverification_requested"/);
+  assert.match(source, /marketAgeVerificationSource: "datevault_member_approval"/);
+  assert.match(source, /ageVerificationRequired: !isAdmin\(profile\)/);
+});
+
+test("Market requires a new age review only when DateVault explicitly requests reverification", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-verification.js"), "utf8");
+  assert.match(source, /context\.profile\.marketAgeVerified === true && context\.profile\.verificationStatus !== "reverification_requested"/);
+  assert.match(source, /dateVaultApproved/);
+});
