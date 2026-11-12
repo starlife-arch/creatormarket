@@ -7,7 +7,7 @@ const configs={
 };
 const role=path.startsWith("/studio")?"creator":path.startsWith("/admin")?"admin":"buyer";
 const cfg=configs[role];
-const current=path==="/member"?"/library":path==="/creator"?"/creator":path;
+const current=path==="/"?"/discover":path==="/member"?"/library":path==="/creator"?"/creator":path;
 const pageTitles={" /":"Discover","/":"Discover","/discover":"Discover","/search":"Search","/library":"My Library","/member":"My Library","/saved":"Saved","/wallet":"Wallet","/transactions":"Transactions","/profile":"My Profile","/studio":"Overview","/studio/upload":"Upload content","/studio/content":"My content","/studio/drafts":"Drafts","/studio/performance":"Content performance","/studio/earnings":"Earnings","/studio/withdrawals":"Withdrawals","/studio/sales":"Sales & transactions","/studio/profile":"Public profile","/studio/verification":"Identity verification","/studio/settings":"Creator settings","/admin":"Overview","/admin/buyers":"Buyers","/admin/creators":"Creators","/admin/identity":"Identity reviews","/admin/content":"Content library","/admin/listings":"Listings","/admin/withdrawals":"Withdrawals","/admin/earnings":"Creator earnings","/admin/reports":"Reports & moderation","/admin/audit":"Audit logs","/admin/settings":"Platform settings"};
 const title=pageTitles[current]||cfg.title;
 const body=document.body;body.classList.add("market-workspace");
