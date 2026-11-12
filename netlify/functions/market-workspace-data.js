@@ -31,7 +31,8 @@ async function buyerData(context) {
   const d = user.data() || {};
   const transactions = txSnap.docs.map(doc => {
     const t = doc.data();
-    return { id: doc.id, type: t.type || "wallet_activity", amount: Number(t.amount || 0),
+    const rawAmount = Number(t.amount || 0);
+    return { id: doc.id, type: t.type || "wallet_activity", amount: t.type === "market_purchase" ? -Math.abs(rawAmount) : rawAmount,
       note: t.note || t.listingTitle || "Wallet activity", status: t.status || "completed",
       createdAt: iso(t.createdAt), listingId: t.listingId || null };
   }).sort((a,b) => millis(b.createdAt)-millis(a.createdAt)).slice(0,150);
@@ -127,6 +128,10 @@ exports.handler = async event => {
     }
     const context = await loadMarketUser(event);
     if (context.error) return context.error;
+    if (view === "public-settings") {
+      const snap = await context.admin.firestore().collection("marketSettings").doc("platform").get();
+      return json(200, { announcement: snap.exists ? cleanText(snap.data().announcement || "", 240) : "" });
+    }
     if (view === "buyer") return buyerData(context);
     if (view === "creator") return creatorData(context);
     return json(400, { error: "Choose a valid workspace data view." });
