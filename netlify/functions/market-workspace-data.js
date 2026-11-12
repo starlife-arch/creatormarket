@@ -120,6 +120,20 @@ exports.handler = async event => {
           newListingsEnabled: d.newListingsEnabled !== false, announcement: d.announcement || "",
           updatedAt: iso(d.updatedAt), updatedBy: d.updatedBy || "" } });
       }
+      if (view === "admin-earnings") {
+        const ledgerSnap = await context.db.collection("marketPlatformLedger").limit(1000).get();
+        const entries = ledgerSnap.docs.map(doc => {
+          const d = doc.data();
+          return { id: doc.id, listingId: d.listingId || "", creatorUid: d.creatorUid || "",
+            buyerUid: d.buyerUid || "", grossTokens: Number(d.grossTokens || 0),
+            platformFeeTokens: Number(d.platformFeeTokens || 0), creatorNetTokens: Number(d.creatorNetTokens || 0),
+            createdAt: iso(d.createdAt) };
+        }).sort((a,b)=>millis(b.createdAt)-millis(a.createdAt));
+        return json(200, { summary: { completedSales: entries.length,
+          grossTokens: entries.reduce((n,x)=>n+x.grossTokens,0),
+          platformFeeTokens: entries.reduce((n,x)=>n+x.platformFeeTokens,0),
+          creatorNetTokens: entries.reduce((n,x)=>n+x.creatorNetTokens,0) }, entries: entries.slice(0,300) });
+      }
       const snap = await context.db.collection("marketAdminAudit").limit(500).get();
       const logs = snap.docs.map(doc => {
         const d = doc.data();
