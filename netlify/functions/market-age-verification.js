@@ -24,7 +24,7 @@ exports.handler = async event => {
     // A deliberate reverification request is the only reason to require review again.
     const dateVaultApproved = context.profile.status === "active_member"
       && context.profile.verificationStatus !== "reverification_requested";
-    if (context.profile.marketAgeVerified === true || dateVaultApproved) {
+    if ((context.profile.marketAgeVerified === true && context.profile.verificationStatus !== "reverification_requested") || dateVaultApproved) {
       if (context.profile.marketAgeVerified !== true && dateVaultApproved) {
         await db.collection("users").doc(context.uid).set({
           marketAgeVerified: true,
