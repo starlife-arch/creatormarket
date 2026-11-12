@@ -20,24 +20,27 @@ async function adminContext(event) {
   if (!user.exists || !isAdmin(user.data())) return { error: json(403, { error: "Administrator access required." }) };
   return { uid: auth.uid, admin, db };
 }
-async function buyerData(context) {
+async function buyerData(context, cursor = "") {
   const db = context.admin.firestore();
   const userRef = db.collection("users").doc(context.uid);
-  const [user, txSnap] = await Promise.all([
-    userRef.get(),
-    userRef.collection("walletTransactions").limit(200).get()
-  ]);
+  const user = await userRef.get();
   if (!user.exists) return json(403, { error: "Your DateVault account could not be verified." });
+  let query = userRef.collection("walletTransactions").orderBy("createdAt", "desc").limit(50);
+  if (cursor) {
+    const cursorSnap = await userRef.collection("walletTransactions").doc(cursor).get();
+    if (cursorSnap.exists) query = query.startAfter(cursorSnap);
+  }
+  const txSnap = await query.get();
   const d = user.data() || {};
   const transactions = txSnap.docs.map(doc => {
-    const t = doc.data();
-    const rawAmount = Number(t.amount || 0);
+    const t = doc.data(), rawAmount = Number(t.amount || 0);
     return { id: doc.id, type: t.type || "wallet_activity", amount: t.type === "market_purchase" ? -Math.abs(rawAmount) : rawAmount,
       note: t.note || t.listingTitle || "Wallet activity", status: t.status || "completed",
       createdAt: iso(t.createdAt), listingId: t.listingId || null };
-  }).sort((a,b) => millis(b.createdAt)-millis(a.createdAt)).slice(0,150);
+  });
   return json(200, { walletBalance: Number(d.walletBalance || 0), walletFrozen: d.walletFrozen === true,
-    transactions, topUpUrl: "https://elysiandate.site/app/wallet/" });
+    transactions, nextCursor: txSnap.docs.length === 50 ? txSnap.docs[txSnap.docs.length - 1].id : null,
+    topUpUrl: "https://elysiandate.site/app/wallet/" });
 }
 async function creatorData(context) {
   const db = context.admin.firestore();
@@ -132,7 +135,7 @@ exports.handler = async event => {
       const snap = await context.admin.firestore().collection("marketSettings").doc("platform").get();
       return json(200, { announcement: snap.exists ? cleanText(snap.data().announcement || "", 240) : "" });
     }
-    if (view === "buyer") return buyerData(context);
+    if (view === "buyer") return buyerData(context, cleanText(event.queryStringParameters?.cursor || "", 128));
     if (view === "creator") return creatorData(context);
     return json(400, { error: "Choose a valid workspace data view." });
   } catch (error) {
