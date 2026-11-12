@@ -64,11 +64,7 @@ exports.handler = async event => {
         return json(200, { ok: true, status: "deleted" });
       }
       if (body.action === "update") {
-        const platformSettings = await db.collection("marketSettings").doc("platform").get();
-    if (platformSettings.exists && platformSettings.data().newListingsEnabled === false) {
-      return json(403, { error: "New creator listings are temporarily paused. Existing listings and purchases remain available." });
-    }
-    const title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
+        const title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
         if (title.length < 3 || description.length < 20) return json(400, { error: "Enter a title (at least 3 characters) and description (at least 20 characters)." });
         const offers = normalizeOffers(body.offers);
         await listingRef.update({ title, description, offers, updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
@@ -83,6 +79,10 @@ exports.handler = async event => {
         return json(200, { ok: true, status });
       }
       return json(400, { error: "Unsupported listing management action." });
+    }
+    const platformSettings = await db.collection("marketSettings").doc("platform").get();
+    if (platformSettings.exists && platformSettings.data().newListingsEnabled === false) {
+      return json(403, { error: "New creator listings are temporarily paused. Existing listings and purchases remain available." });
     }
     const title = cleanText(body.title, 90), description = cleanText(body.description, 1200);
     if (title.length < 3 || description.length < 20) return json(400, { error: "Enter a title (at least 3 characters) and description (at least 20 characters)." });
