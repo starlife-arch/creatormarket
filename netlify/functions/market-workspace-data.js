@@ -45,7 +45,7 @@ async function buyerData(context, cursor = "") {
 async function creatorData(context) {
   const db = context.admin.firestore();
   const creator = await db.collection("marketCreators").doc(context.uid).get();
-  if (!creator.exists || creator.data().status !== "approved" || context.profile.marketCreatorIdentityVerified !== true) {
+  if (!creator.exists || creator.data().status !== "approved" || context.profile.marketAgeVerified !== true || context.profile.marketCreatorIdentityVerified !== true) {
     return json(403, { error: "An approved, identity-verified creator account is required." });
   }
   const [balanceSnap, salesSnap, ledgerSnap, listingsSnap] = await Promise.all([
