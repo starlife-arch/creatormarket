@@ -15,16 +15,23 @@ const oldHeader=body.querySelector("header");if(oldHeader)oldHeader.classList.ad
 const oldMain=body.querySelector("main");
 const shell=document.createElement("div");shell.className="market-shell";
 const overlay=document.createElement("div");overlay.className="market-mobile-overlay";
-const aside=document.createElement("aside");aside.className="market-sidebar";
+const aside=document.createElement("aside");aside.className="market-sidebar";aside.id="marketSidebar";aside.setAttribute("aria-label",cfg.label+" navigation");
 const groups=cfg.groups.map(g=>'<div class="market-nav-group"><div class="market-nav-label">'+g.label+'</div>'+g.items.map(([label,url,icon])=>'<a class="market-nav-link '+(current===url?"active":"")+'" href="'+url+'"><span class="market-nav-icon">'+icon+'</span><span>'+label+'</span></a>').join("")+'</div>').join("");
 aside.innerHTML='<a class="market-brand" href="/discover"><span class="market-brand-mark">M</span><span>DATEVAULT <span style="color:#35d6ae">MARKET</span><small>'+cfg.label.toUpperCase()+'</small></span></a><nav>'+groups+'</nav><div class="market-sidebar-bottom"><a class="market-nav-link" href="https://elysiandate.site"><span class="market-nav-icon">↗</span><span>Back to DateVault</span></a></div>';
 const main=document.createElement("div");main.className="market-main";
 const top=document.createElement("div");top.className="market-topbar";
-top.innerHTML='<div style="display:flex;align-items:center;gap:12px"><button class="market-mobile-menu" type="button" aria-label="Open navigation">☰</button><div><div class="market-top-title">'+title+'</div><div class="market-top-subtitle">'+cfg.label+'</div></div></div><div class="market-top-actions"><span class="market-status">● Secure workspace</span><a class="market-top-link" href="/member">My Market</a><button class="market-top-link" id="marketSignOut" type="button">Sign out</button></div>';
+top.innerHTML='<div class="market-top-heading"><button class="market-mobile-menu" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="marketSidebar">☰</button><div class="market-top-heading-copy"><div class="market-top-title">'+title+'</div><div class="market-top-subtitle">'+cfg.label+'</div></div></div><div class="market-top-actions"><span class="market-status">● Secure workspace</span><a class="market-top-link" href="/member">My Market</a><button class="market-top-link" id="marketSignOut" type="button">Sign out</button></div>';
 const page=document.createElement("div");page.className="market-page";
 if(oldMain){page.appendChild(oldMain);main.append(top,page);}else main.append(top,page);
 shell.append(overlay,aside,main);body.insertBefore(shell,body.firstChild);
-const menu=()=>shell.classList.toggle("menu-open");top.querySelector(".market-mobile-menu").addEventListener("click",menu);overlay.addEventListener("click",menu);top.querySelector("#marketSignOut").addEventListener("click",async()=>{const b=top.querySelector("#marketSignOut");b.disabled=true;b.textContent="Signing out…";try{await fetch("/api/market-logout",{method:"POST",credentials:"same-origin"});}finally{location.href="https://elysiandate.site";}});
+const menuButton=top.querySelector(".market-mobile-menu");
+const closeMenu=()=>{shell.classList.remove("menu-open");menuButton.setAttribute("aria-expanded","false");};
+const toggleMenu=()=>{const open=!shell.classList.contains("menu-open");shell.classList.toggle("menu-open",open);menuButton.setAttribute("aria-expanded",String(open));};
+menuButton.addEventListener("click",toggleMenu);
+overlay.addEventListener("click",closeMenu);
+aside.querySelectorAll("a.market-nav-link").forEach(link=>link.addEventListener("click",closeMenu));
+document.addEventListener("keydown",event=>{if(event.key==="Escape")closeMenu();});
+top.querySelector("#marketSignOut").addEventListener("click",async()=>{const b=top.querySelector("#marketSignOut");b.disabled=true;b.textContent="Signing out…";try{await fetch("/api/market-logout",{method:"POST",credentials:"same-origin"});}finally{location.href="https://elysiandate.site";}});
 const style=document.createElement("link");style.rel="stylesheet";style.href="/assets/market-workspace.css";document.head.appendChild(style);
 
 // Reuse existing page sections as independently addressable workspace views.
