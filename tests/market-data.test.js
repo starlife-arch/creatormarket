@@ -79,3 +79,12 @@ test("Market mobile drawer has explicit accessible open and close behavior", () 
   assert.match(css, /\.market-shell\.menu-open \.market-sidebar/);
   assert.match(css, /\.market-sidebar nav\{display:block/);
 });
+
+
+test("approved DateVault members do not repeat Market age checks after 90 days", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-attest.js"), "utf8");
+  assert.match(source, /profile\.status !== "active_member"/);
+  assert.match(source, /profile\.verificationStatus === "reverification_requested"/);
+  assert.doesNotMatch(source, /90 \* 86400000/);
+  assert.match(source, /marketAgeVerified === true/);
+});
