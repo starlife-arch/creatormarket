@@ -74,6 +74,7 @@ exports.handler = async event => {
         const status = cleanText(body.status, 20);
         if (!["published", "paused"].includes(status)) return json(400, { error: "Choose published or paused status." });
         const data = existing.data();
+        if (status === "published" && data.moderationLocked === true) return json(403, { error: "This listing is locked by Market moderation. Contact support or wait for an administrator review." });
         if (status === "published" && !((data.mediaProvider === "api_video" && data.videoId) || (data.mediaPublicId && data.mediaResourceType !== "video"))) return json(409, { error: "Upload valid private media before publishing this listing." });
         await listingRef.update({ status, updatedAt: context.admin.firestore.FieldValue.serverTimestamp() });
         return json(200, { ok: true, status });
