@@ -19,7 +19,25 @@ async function loadMarketUser(event) {
   if (!isMarketAccountEligible(profile)) {
     return { error: json(403, { error: "This account cannot access Creator Market." }) };
   }
-  return { uid: auth.uid, profile, admin, ageVerificationRequired: profile.marketAgeVerified !== true };
+
+  // Share DateVault's approved member identity/age decision with Market.
+  // This is written once on the server and reused by every Market API, so users
+  // are not sent into a second verification flow after DateVault approval.
+  const dateVaultApproved = profile.status === "active_member"
+    && profile.verificationStatus !== "reverification_requested";
+  if (dateVaultApproved && profile.marketAgeVerified !== true) {
+    await snap.ref.set({
+      marketAgeVerified: true,
+      marketAgeVerifiedAt: profile.approvedAt || admin.firestore.FieldValue.serverTimestamp(),
+      marketAgeVerificationSource: "datevault_member_approval"
+    }, { merge: true });
+    profile.marketAgeVerified = true;
+    profile.marketAgeVerificationSource = "datevault_member_approval";
+  }
+  return {
+    uid: auth.uid, profile, admin,
+    ageVerificationRequired: !isAdmin(profile) && (profile.verificationStatus === "reverification_requested" || profile.marketAgeVerified !== true)
+  };
 }
 
 async function loadEligibleUser(event) {

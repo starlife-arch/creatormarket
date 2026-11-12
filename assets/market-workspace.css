@@ -87,3 +87,33 @@ body.market-workspace{min-height:100vh;background:radial-gradient(ellipse at 72%
 @media(max-width:390px){.market-metric-grid{grid-template-columns:1fr 1fr}.market-data-card{padding:15px}.market-actions>*{max-width:100%}}
 
 .market-announcement{margin:0 0 16px;padding:13px 16px;border:1px solid #35d6ae55;border-radius:12px;background:#35d6ae12;color:#d6fff2;font-size:13px;line-height:1.55}
+
+
+/* Workspace navigation: reliable desktop rail and accessible mobile drawer. */
+.market-top-heading{display:flex;align-items:center;gap:12px;min-width:0}
+.market-top-heading-copy{min-width:0}
+.market-top-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.market-sidebar nav{display:block;min-width:0}
+.market-sidebar .market-nav-group{display:block}
+.market-sidebar .market-nav-link{min-width:0}
+.market-sidebar .market-nav-link>span:last-child{min-width:0;overflow-wrap:anywhere}
+.market-mobile-menu{align-items:center;justify-content:center;min-width:42px;min-height:42px;cursor:pointer}
+.market-mobile-menu:focus-visible,.market-nav-link:focus-visible{outline:2px solid var(--mw-teal);outline-offset:2px}
+@media(max-width:720px){
+  .market-sidebar{height:100dvh;max-height:100dvh;overflow-x:hidden;overflow-y:auto;padding:18px 14px calc(24px + env(safe-area-inset-bottom));z-index:31;overscroll-behavior:contain}
+  .market-mobile-overlay{z-index:30}
+  .market-shell.menu-open .market-sidebar{transform:translateX(0);visibility:visible}
+  .market-sidebar nav{padding-bottom:12px}
+  .market-nav-group{margin-bottom:12px}
+  .market-nav-link{min-height:44px;font-size:14px;padding:11px 12px}
+  .market-topbar{gap:10px;padding-inline:12px}
+  .market-top-actions{gap:6px}
+  .market-top-actions .market-top-link{padding:8px 9px;font-size:11px}
+  .market-top-actions .market-status{display:none}
+  .market-page{padding:18px 13px calc(34px + env(safe-area-inset-bottom))}
+}
+@media(max-width:390px){
+  .market-top-subtitle{display:none}
+  .market-top-actions .market-top-link{padding:7px 8px;font-size:10px}
+  .market-top-heading{gap:8px}
+}

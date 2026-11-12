@@ -1,5 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 
 process.env.MARKET_SESSION_SECRET = "test-only-secret-with-more-than-32-characters";
 process.env.MARKET_ORIGIN = "https://market.example.test";
@@ -50,4 +52,39 @@ test("month rentals clamp month-end dates instead of overflowing", () => {
 
 test("permanent access has no expiry", () => {
   assert.equal(expiryFor({ type: "permanent" }, Date.now()), null);
+});
+
+
+test("DateVault member approval is reused as Market age verification", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/_market-data.js"), "utf8");
+  assert.match(source, /profile\.status === "active_member"/);
+  assert.match(source, /profile\.verificationStatus !== "reverification_requested"/);
+  assert.match(source, /marketAgeVerificationSource: "datevault_member_approval"/);
+  assert.match(source, /ageVerificationRequired: !isAdmin\(profile\)/);
+});
+
+test("Market requires a new age review only when DateVault explicitly requests reverification", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-verification.js"), "utf8");
+  assert.match(source, /context\.profile\.marketAgeVerified === true && context\.profile\.verificationStatus !== "reverification_requested"/);
+  assert.match(source, /dateVaultApproved/);
+});
+
+
+test("Market mobile drawer has explicit accessible open and close behavior", () => {
+  const workspace = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.js"), "utf8");
+  const css = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.css"), "utf8");
+  assert.match(workspace, /aria-expanded/);
+  assert.ok(workspace.includes('aside.querySelectorAll("a.market-nav-link")'));
+  assert.match(workspace, /event\.key==="Escape"/);
+  assert.match(css, /\.market-shell\.menu-open \.market-sidebar/);
+  assert.match(css, /\.market-sidebar nav\{display:block/);
+});
+
+
+test("approved DateVault members do not repeat Market age checks after 90 days", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-attest.js"), "utf8");
+  assert.match(source, /profile\.status !== "active_member"/);
+  assert.match(source, /profile\.verificationStatus === "reverification_requested"/);
+  assert.doesNotMatch(source, /90 \* 86400000/);
+  assert.match(source, /marketAgeVerified === true/);
 });
