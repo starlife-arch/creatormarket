@@ -12,6 +12,52 @@
   to = "/favicon.svg"
   status = 301
 
+
+[[redirects]]
+  from = "/discover"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/search"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/library"
+  to = "/member.html"
+  status = 200
+
+[[redirects]]
+  from = "/saved"
+  to = "/member.html"
+  status = 200
+
+[[redirects]]
+  from = "/wallet"
+  to = "/member.html"
+  status = 200
+
+[[redirects]]
+  from = "/transactions"
+  to = "/member.html"
+  status = 200
+
+[[redirects]]
+  from = "/profile"
+  to = "/member.html"
+  status = 200
+
+[[redirects]]
+  from = "/studio/*"
+  to = "/studio.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin.html"
+  status = 200
+
 [[redirects]]
   from = "/member"
   to = "/member.html"
