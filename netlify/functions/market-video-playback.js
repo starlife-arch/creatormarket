@@ -1,5 +1,5 @@
 const { json, readCookie, verifySession } = require("./_market-auth");
-const { loadEligibleUser, cleanText } = require("./_market-data");
+const { loadEligibleUser, loadMarketUser, cleanText, isAdmin } = require("./_market-data");
 const { issueVideoTicket, base64url } = require("./_market-video-ticket");
 
 function basicAuth(apiKey) {
@@ -27,8 +27,10 @@ function expiryMillis(entitlement, isOwner) {
 exports.handler = async event => {
   if (event.httpMethod !== "GET") return json(405, { error: "Method not allowed." }, { Allow: "GET" });
   try {
-    const context = await loadEligibleUser(event);
+    const reviewOnly = event.queryStringParameters?.review === "1";
+    const context = reviewOnly ? await loadMarketUser(event) : await loadEligibleUser(event);
     if (context.error) return context.error;
+    if (reviewOnly && !isAdmin(context.profile)) return json(403, { error: "Administrator access required for private content review." });
     const marketSession = verifySession(readCookie(event, "dv_market_session"));
     if (!marketSession || marketSession.sub !== context.uid || !marketSession.jti) return json(401, { error: "Your Market session has expired. Sign in again." });
     const listingId = cleanText(event.queryStringParameters?.listingId || "", 128);
@@ -42,10 +44,11 @@ exports.handler = async event => {
     if (!listingSnap.exists) return json(404, { error: "This content is unavailable." });
     const listing = listingSnap.data();
     if (previewOnly && listing.status !== "published") return json(404, { error: "This content is unavailable." });
+    if (reviewOnly && listing.status === "deleted") return json(404, { error: "This content has been deleted." });
     if (listing.mediaProvider !== "api_video" || !listing.videoId) return json(409, { error: "This listing is not yet using secure api.video playback." });
     const isOwner = listing.creatorUid === context.uid;
     let entitlement = null;
-    if (!previewOnly && !isOwner) {
+    if (!previewOnly && !reviewOnly && !isOwner) {
       const now = Date.now();
       const findActive = docs => docs.map(doc => doc.data()).find(item => {
         if (item.listingId !== listingId || item.status !== "active") return false;
@@ -60,9 +63,11 @@ exports.handler = async event => {
         entitlement = findActive(legacy.docs);
       }
       if (!entitlement) return json(403, { error: "Purchase an access offer to watch this video." });
-    } else if (previewOnly || isOwner) {
-      const creatorSnap = await db.collection("marketCreators").doc(listing.creatorUid).get();
-      if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "This content is unavailable." });
+    } else if (previewOnly || isOwner || reviewOnly) {
+      if (!reviewOnly) {
+        const creatorSnap = await db.collection("marketCreators").doc(listing.creatorUid).get();
+        if (!creatorSnap.exists || creatorSnap.data().status !== "approved") return json(404, { error: "This content is unavailable." });
+      }
     }
     const videoId = String(listing.videoId);
     if (!/^[A-Za-z0-9_-]{6,80}$/.test(videoId)) return json(409, { error: "The stored video reference is invalid." });
@@ -79,11 +84,11 @@ exports.handler = async event => {
     if (!sessionToken) return json(502, { error: "The video provider did not create a playback session." });
 
     const now = Date.now();
-    const expiresAt = previewOnly ? now + 5 * 60 * 1000 : expiryMillis(entitlement, isOwner);
+    const expiresAt = (previewOnly || reviewOnly) ? now + 5 * 60 * 1000 : expiryMillis(entitlement, isOwner);
     if (expiresAt <= now) return json(410, { error: "This rental has expired." });
     const claims = {
       aud: new URL(gatewayUrl).host, sub: context.uid, sessionJti: marketSession.jti, listingId, videoId,
-      privateToken, sessionToken, scope: previewOnly ? "preview" : "playback",
+      privateToken, sessionToken, scope: reviewOnly ? "admin_review" : previewOnly ? "preview" : "playback",
       iat: Math.floor(now / 1000), exp: Math.floor(expiresAt / 1000), expMs: expiresAt
     };
     const ticket = issueVideoTicket(claims);
@@ -91,7 +96,7 @@ exports.handler = async event => {
       ? "/vod/" + videoId + "/token/" + privateToken + "/thumbnail.jpg?avh=" + encodeURIComponent(sessionToken)
       : "/vod/" + videoId + "/token/" + privateToken + "/hls/manifest.m3u8?avh=" + encodeURIComponent(sessionToken);
     const url = gatewayUrl + "/video-gateway?ticket=" + encodeURIComponent(ticket) + "&path=" + encodeURIComponent(base64url(providerPath));
-    const downloadAllowed = !previewOnly && !isOwner && listing.downloadAllowed === true && entitlement?.downloadAllowed === true;
+    const downloadAllowed = !previewOnly && !reviewOnly && !isOwner && listing.downloadAllowed === true && entitlement?.downloadAllowed === true;
     let downloadUrl = null;
     if (downloadAllowed) {
       const downloadTicket = issueVideoTicket({ ...claims, scope: "download" });
@@ -99,7 +104,7 @@ exports.handler = async event => {
       downloadUrl = gatewayUrl + "/video-gateway?ticket=" + encodeURIComponent(downloadTicket) + "&path=" + encodeURIComponent(base64url(downloadPath));
     }
     return json(200, {
-      ok: true, playbackUrl: url, downloadUrl, previewOnly,
+      ok: true, playbackUrl: url, downloadUrl, previewOnly, reviewOnly,
       expiresAt: new Date(expiresAt).toISOString(),
       expiresInSeconds: Math.max(0, Math.floor((expiresAt - now) / 1000)),
       contentType: previewOnly ? "image/jpeg" : "application/vnd.apple.mpegurl",
