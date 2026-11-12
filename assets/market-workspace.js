@@ -114,13 +114,18 @@ async function renderCreatorWorkspace(){
 }
 async function renderAdminWorkspace(){
  const view=current.split("/")[2]||"";
- const heading=view==="content"?["Moderation workspace","Private content review","Review creator listings and securely preview private videos before approving or hiding them."]:view==="audit"?["Platform governance","Audit logs","A chronological record of administrator actions across Creator Market."]:["Platform governance","Platform settings","Control new creator applications, new listing creation and the marketplace announcement."];
+ const heading=view==="content"?["Moderation workspace","Private content review","Review creator listings and securely preview private videos before approving or hiding them."]:view==="audit"?["Platform governance","Audit logs","A chronological record of administrator actions across Creator Market."]:view==="earnings"?["Platform finances","Creator earnings & commission","Reconcile completed sales, creator earnings and the fixed 15% platform commission."]:["Platform governance","Platform settings","Control new creator applications, new listing creation and the marketplace announcement."];
  page.innerHTML='<section class="market-data-view">'+workspaceHeading(...heading)+'<div id="marketAdminData">'+workspaceMessage("Loading admin workspace…")+'</div></section>';
  const target=page.querySelector("#marketAdminData");
  try{
   if(view==="audit"){
    const d=await workspaceApi("/api/market-workspace-data?view=admin-audit");
    target.innerHTML=d.logs?.length?'<div class="market-data-stack">'+d.logs.map(x=>'<article class="market-data-card"><div class="market-data-row"><strong>'+escapeValue(x.action.replace(/_/g," "))+'</strong><small>'+escapeValue(dateValue(x.createdAt))+'</small></div><p>'+escapeValue(x.reason||"No note supplied")+'</p><small>Actor: '+escapeValue(x.actorUid)+' · Target: '+escapeValue(x.targetType||"record")+' '+escapeValue(x.targetId||x.targetUid)+'</small></article>').join("")+'</div>':workspaceMessage("No administrator audit entries have been recorded yet.");
+   return;
+  }
+  if(view==="earnings"){
+   const d=await workspaceApi("/api/market-workspace-data?view=admin-earnings"),s=d.summary||{};
+   target.innerHTML='<div class="market-metric-grid"><article class="market-metric-card"><small>Completed sales</small><strong>'+Number(s.completedSales||0).toLocaleString()+'</strong></article><article class="market-metric-card"><small>Gross sales</small><strong>'+tokenValue(s.grossTokens)+'</strong></article><article class="market-metric-card"><small>Platform commission · 15%</small><strong class="market-positive">'+tokenValue(s.platformFeeTokens)+'</strong></article><article class="market-metric-card"><small>Creator earnings · 85%</small><strong>'+tokenValue(s.creatorNetTokens)+'</strong></article></div><article class="market-data-card"><h2>Platform sales ledger</h2>'+((d.entries||[]).length?d.entries.map(x=>'<div class="market-data-row"><div><strong>Listing '+escapeValue(x.listingId)+'</strong><small>'+escapeValue(dateValue(x.createdAt))+' · Creator '+escapeValue(x.creatorUid.slice(-6))+'</small><small>Gross '+tokenValue(x.grossTokens)+' · Creator net '+tokenValue(x.creatorNetTokens)+'</small></div><strong class="market-positive">+'+tokenValue(x.platformFeeTokens)+'</strong></div>').join(""):workspaceMessage("No completed sales are recorded yet."))+'</article>';
    return;
   }
   if(view==="settings"){
@@ -147,6 +152,6 @@ page.addEventListener("click",async event=>{
 });
 if(role==="buyer"&&["/saved","/wallet","/transactions"].includes(current))renderBuyerWorkspace();
 if(role==="creator"&&["/studio/performance","/studio/sales","/studio/settings","/studio/withdrawals"].includes(current))renderCreatorWorkspace();
-if(role==="admin"&&["/admin/content","/admin/audit","/admin/settings"].includes(current))renderAdminWorkspace();
+if(role==="admin"&&["/admin/content","/admin/audit","/admin/settings","/admin/earnings"].includes(current))renderAdminWorkspace();
 const logout=document.getElementById("logout");if(logout)logout.textContent="Sign out";
 })();
