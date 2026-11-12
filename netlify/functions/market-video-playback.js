@@ -34,7 +34,7 @@ exports.handler = async event => {
     const marketSession = verifySession(readCookie(event, "dv_market_session"));
     if (!marketSession || marketSession.sub !== context.uid || !marketSession.jti) return json(401, { error: "Your Market session has expired. Sign in again." });
     const listingId = cleanText(event.queryStringParameters?.listingId || "", 128);
-    const previewOnly = event.queryStringParameters?.preview === "1";
+    const previewOnly = !reviewOnly && event.queryStringParameters?.preview === "1";
     if (!listingId) return json(400, { error: "Listing ID is required." });
     const apiKey = process.env.API_VIDEO_API_KEY;
     const gatewayUrl = String(process.env.MARKET_VIDEO_GATEWAY_URL || "").replace(/\/$/, "");
