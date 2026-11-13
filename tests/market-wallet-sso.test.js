@@ -42,3 +42,12 @@ test("new age, creator identity and top-up server functions parse",()=>{
   assert.doesNotThrow(()=>new (require("node:vm").Script)(source,{filename:file}));
  }
 });
+
+
+test("wallet token deposit cards use readable dark styling and responsive widths",()=>{
+ const ui=fs.readFileSync(path.join(root,"assets/market-workspace.js"),"utf8");
+ assert.ok(ui.includes("background:#14243a;color:#f4f7fc"));
+ assert.ok(ui.includes("color:#b8c9df"));
+ assert.ok(ui.includes("repeat(auto-fit,minmax(190px,1fr))"));
+ assert.ok(ui.includes("updateTokenCardStates"));
+});
