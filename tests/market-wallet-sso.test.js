@@ -33,3 +33,10 @@ test("Market wallet top-up uses Market session and shared DateVault PrintPay led
  assert.match(ui,/\/api\/market-wallet-topup/);assert.match(ui,/Top up in Creator Market/);
  assert.doesNotMatch(ui,/openMarketWalletTopUp|market-wallet-sso-issue/);
 });
+
+test("new age, creator identity and top-up server functions parse",()=>{
+ for(const file of ["netlify/functions/market-age-verification.js","netlify/functions/market-creator-identity-verification.js","netlify/functions/market-didit-webhook.js","netlify/functions/market-wallet-topup.js"]){
+  const source=fs.readFileSync(path.join(root,file),"utf8");
+  assert.doesNotThrow(()=>new (require("node:vm").Script)(source,{filename:file}));
+ }
+});
