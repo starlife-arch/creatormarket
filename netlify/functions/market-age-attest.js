@@ -1,16 +1,6 @@
 const { json, getAdmin, originAllowed } = require("./_market-auth");
 const { getMarketUser } = require("./_market-data");
 
-function approvalDate(value) {
-  if (value?.toDate) return value.toDate();
-  if (value instanceof Date) return value;
-  if (typeof value === "string" || typeof value === "number") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-  return null;
-}
-
 exports.handler = async event => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" }, { Allow: "POST" });
   if (!originAllowed(event)) return json(403, { error: "Origin not allowed." });
