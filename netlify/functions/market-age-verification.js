@@ -19,23 +19,14 @@ exports.handler = async event => {
     const db = context.admin.firestore();
     const requestRef = db.collection("marketAgeVerificationRequests").doc(context.uid);
 
-    // DateVault already performs the member's identity/age approval. Reuse that
-    // server-owned approval for Market instead of asking the same member again.
-    // A deliberate reverification request is the only reason to require review again.
-    const dateVaultApproved = context.profile.status === "active_member"
-      && context.profile.verificationStatus !== "reverification_requested";
-    if ((context.profile.marketAgeVerified === true && context.profile.verificationStatus !== "reverification_requested") || dateVaultApproved) {
-      if (context.profile.marketAgeVerified !== true && dateVaultApproved) {
-        await db.collection("users").doc(context.uid).set({
-          marketAgeVerified: true,
-          marketAgeVerifiedAt: context.profile.approvedAt || context.admin.firestore.FieldValue.serverTimestamp(),
-          marketAgeVerificationSource: "datevault_member_approval"
-        }, { merge: true });
-      }
+    // Marketplace age assurance is independent of DateVault membership.
+    // Never infer 18+ approval from active_member, trial, subscription or
+    // account status. Only an explicit server-approved Market age flag counts.
+    if (context.profile.marketAgeVerified === true &&
+        context.profile.verificationStatus !== "reverification_requested") {
       return json(200, {
-        verified: true, status: "verified", reused: dateVaultApproved,
-        source: dateVaultApproved ? "datevault" : "market",
-        message: "Your DateVault age verification is already approved. You can use Creator Market without repeating verification."
+        verified: true, status: "verified", reused: true, source: "market",
+        message: "Your Creator Market age assurance is already approved."
       });
     }
 
