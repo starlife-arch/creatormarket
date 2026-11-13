@@ -83,8 +83,22 @@ async function renderBuyerWorkspace(){
    return;
   }
   const d=await workspaceApi("/api/market-workspace-data?view=buyer");
+  window.openMarketWalletTopUp = async function(button) {
+   if(button){button.disabled=true;button.textContent="Connecting securely…";}
+   try{
+    const response=await fetch("/api/market-wallet-sso-issue",{method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},body:"{}"});
+    const result=await response.json().catch(()=>({}));
+    if(!response.ok||!result.ok||!result.redirectUrl)throw new Error(result.error||"Could not open the shared wallet.");
+    window.location.assign(result.redirectUrl);
+   }catch(error){
+    if(button){button.disabled=false;button.textContent="Open DateVault wallet";}
+    const target=document.querySelector("#marketBuyerData");
+    if(target)target.insertAdjacentHTML("afterbegin",workspaceMessage(error.message,true));
+   }
+  };
+  
   if(current==="/wallet"){
-   target.innerHTML='<div class="market-metric-grid"><article class="market-metric-card"><small>Available balance</small><strong>'+tokenValue(d.walletBalance)+'</strong><p>Shared DateVault wallet balance</p></article><article class="market-metric-card"><small>Wallet status</small><strong>'+(d.walletFrozen?'On hold':'Active')+'</strong><p>'+(d.walletFrozen?'Contact DateVault support before making purchases.':'Ready for eligible Market purchases.')+'</p></article></div><article class="market-data-card"><h2>Manage your wallet</h2><p class="market-muted">Top up tokens securely in your DateVault wallet. Creator Market does not keep a separate buyer balance.</p><a class="market-top-link" href="'+escapeValue(d.topUpUrl)+'">Open DateVault wallet</a></article><article class="market-data-card"><h2>Recent activity</h2>'+(d.transactions||[]).slice(0,8).map(item=>'<div class="market-data-row"><div><strong>'+escapeValue(item.note)+'</strong><small>'+escapeValue(dateValue(item.createdAt))+'</small></div><strong class="'+(Number(item.amount)<0?'market-negative':'market-positive')+'">'+(Number(item.amount)<0?'−':'+')+tokenValue(Math.abs(Number(item.amount||0)))+'</strong></div>').join("")+'</article>';
+   target.innerHTML='<div class="market-metric-grid"><article class="market-metric-card"><small>Available balance</small><strong>'+tokenValue(d.walletBalance)+'</strong><p>Shared DateVault wallet balance</p></article><article class="market-metric-card"><small>Wallet status</small><strong>'+(d.walletFrozen?'On hold':'Active')+'</strong><p>'+(d.walletFrozen?'Contact DateVault support before making purchases.':'Ready for eligible Market purchases.')+'</p></article></div><article class="market-data-card"><h2>Manage your wallet</h2><p class="market-muted">Top up tokens securely in your DateVault wallet. Creator Market does not keep a separate buyer balance.</p><button type="button" class="market-top-link" onclick="openMarketWalletTopUp(this)">Open DateVault wallet</button></article><article class="market-data-card"><h2>Recent activity</h2>'+(d.transactions||[]).slice(0,8).map(item=>'<div class="market-data-row"><div><strong>'+escapeValue(item.note)+'</strong><small>'+escapeValue(dateValue(item.createdAt))+'</small></div><strong class="'+(Number(item.amount)<0?'market-negative':'market-positive')+'">'+(Number(item.amount)<0?'−':'+')+tokenValue(Math.abs(Number(item.amount||0)))+'</strong></div>').join("")+'</article>';
   }else{
    target.innerHTML='<article class="market-data-card"><div class="market-data-row"><div><strong>Wallet balance</strong><small>Current DateVault token balance</small></div><strong>'+tokenValue(d.walletBalance)+'</strong></div></article><article class="market-data-card"><h2>All transactions</h2><div id="marketTransactionsList">'+transactionMarkup(d.transactions||[])+'</div>'+(d.nextCursor?'<button type="button" class="market-top-link" id="marketLoadMore">Load more transactions</button>':'')+'</article>';
    let nextCursor=d.nextCursor;
