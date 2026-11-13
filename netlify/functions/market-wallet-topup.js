@@ -13,7 +13,8 @@ exports.handler=async event=>{
   const user=userSnap.data()||{};
   if(user.banned||user.suspended||user.accountSuspended||user.marketBanned||user.walletFrozen)return json(403,{error:"Your account or shared wallet is restricted."});
   if(event.httpMethod==="POST"){
-   if(process.env.CONTEXT!=="production")return json(503,{error:"M-Pesa top-ups are disabled in preview and development to prevent real charges."});
+   const requestHost=String(event.headers?.host||event.headers?.Host||event.headers?.["x-forwarded-host"]||"").split(",")[0].trim().toLowerCase().split(":")[0];
+   if(requestHost!=="market.elysiandate.site")return json(503,{error:"M-Pesa top-ups are only available on the official Creator Market site."});
    const body=parseBody(event),tokens=Number(body.tokens),phone=String(body.phone||"").replace(/[^0-9]/g,"");
    if(!Number.isSafeInteger(tokens)||tokens<30||tokens>1000000)return json(400,{error:"Enter at least 30 whole tokens."});
    if(!/^254[17]\d{8}$/.test(phone)&&!/^0[17]\d{8}$/.test(phone))return json(400,{error:"Enter a valid Kenyan M-Pesa number."});
