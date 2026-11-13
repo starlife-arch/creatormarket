@@ -6,7 +6,7 @@ const path = require("node:path");
 process.env.MARKET_SESSION_SECRET = "test-only-secret-with-more-than-32-characters";
 process.env.MARKET_ORIGIN = "https://market.example.test";
 
-const { cleanText, validUsername, isAdmin } = require("../netlify/functions/_market-data");
+const { cleanText, validUsername, isAdmin, isMarketAccountEligible } = require("../netlify/functions/_market-data");
 
 test("creator usernames accept safe lowercase handles", () => {
   assert.equal(validUsername("agon_22"), true);
@@ -55,20 +55,36 @@ test("permanent access has no expiry", () => {
 });
 
 
-test("DateVault member approval is reused as Market age verification", () => {
+test("Market access is independent of every DateVault membership state", () => {
+  for (const status of ["trial", "standard", "elite", "vault", "active_member", "expired", "cancelled", "rejected", "pending_admin_review", undefined]) {
+    assert.equal(isMarketAccountEligible({ status }), true, String(status));
+  }
+});
+
+test("only explicit platform safety restrictions block Market access", () => {
+  for (const field of ["banned", "suspended", "accountSuspended", "marketBanned"]) {
+    assert.equal(isMarketAccountEligible({ [field]: true }), false, field);
+    assert.equal(isMarketAccountEligible({ [field]: false }), true, field);
+  }
+});
+
+test("DateVault membership is never treated as Market age verification", () => {
   const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/_market-data.js"), "utf8");
-  assert.match(source, /profile\.status === "active_member"/);
-  assert.match(source, /profile\.verificationStatus !== "reverification_requested"/);
-  assert.match(source, /marketAgeVerificationSource: "datevault_member_approval"/);
-  assert.match(source, /ageVerificationRequired: !isAdmin\(profile\)/);
+  assert.equal(source.includes('profile.status === "active_member"'), false);
+  assert.equal(source.includes("ageVerificationRequired: !isAdmin(profile)"), true);
 });
 
-test("Market requires a new age review only when DateVault explicitly requests reverification", () => {
+test("Market age verification only accepts an explicit Market approval", () => {
   const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-verification.js"), "utf8");
-  assert.match(source, /context\.profile\.marketAgeVerified === true && context\.profile\.verificationStatus !== "reverification_requested"/);
-  assert.match(source, /dateVaultApproved/);
+  assert.equal(source.includes("context.profile.marketAgeVerified === true"), true);
+  assert.equal(source.includes("dateVaultApproved"), false);
 });
 
+test("DateVault age attestation cannot grant Market age approval from membership status", () => {
+  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-attest.js"), "utf8");
+  assert.equal(source.includes("Complete Creator Market's age-assurance process"), true);
+  assert.equal(source.includes('profile.status !== "active_member"'), false);
+});
 
 test("Market mobile drawer has explicit accessible open and close behavior", () => {
   const workspace = fs.readFileSync(path.join(__dirname, "../assets/market-workspace.js"), "utf8");
@@ -81,10 +97,3 @@ test("Market mobile drawer has explicit accessible open and close behavior", () 
 });
 
 
-test("approved DateVault members do not repeat Market age checks after 90 days", () => {
-  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-attest.js"), "utf8");
-  assert.match(source, /profile\.status !== "active_member"/);
-  assert.match(source, /profile\.verificationStatus === "reverification_requested"/);
-  assert.doesNotMatch(source, /90 \* 86400000/);
-  assert.match(source, /marketAgeVerified === true/);
-});

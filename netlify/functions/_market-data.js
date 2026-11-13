@@ -16,23 +16,11 @@ async function loadMarketUser(event) {
   const snap = await admin.firestore().collection("users").doc(auth.uid).get();
   if (!snap.exists) return { error: json(403, { error: "Your DateVault account could not be verified." }) };
   const profile = snap.data() || {};
+  // Creator Market is an independent product. DateVault membership, trial,
+  // subscription expiry, cancellation, and dating-profile status never gate it.
+  // Only explicit account/platform safety restrictions can block Market access.
   if (!isMarketAccountEligible(profile)) {
-    return { error: json(403, { error: "This account cannot access Creator Market." }) };
-  }
-
-  // Share DateVault's approved member identity/age decision with Market.
-  // This is written once on the server and reused by every Market API, so users
-  // are not sent into a second verification flow after DateVault approval.
-  const dateVaultApproved = profile.status === "active_member"
-    && profile.verificationStatus !== "reverification_requested";
-  if (dateVaultApproved && profile.marketAgeVerified !== true) {
-    await snap.ref.set({
-      marketAgeVerified: true,
-      marketAgeVerifiedAt: profile.approvedAt || admin.firestore.FieldValue.serverTimestamp(),
-      marketAgeVerificationSource: "datevault_member_approval"
-    }, { merge: true });
-    profile.marketAgeVerified = true;
-    profile.marketAgeVerificationSource = "datevault_member_approval";
+    return { error: json(403, { error: "This account is restricted from Creator Market. Contact support if you believe this is an error." }) };
   }
   return {
     uid: auth.uid, profile, admin,
@@ -58,11 +46,14 @@ function validUsername(value) {
 }
 
 function isMarketAccountEligible(profile = {}) {
-  if (profile.banned === true || profile.suspended === true || profile.accountSuspended === true || profile.marketBanned === true) return false;
-  if (["rejected", "suspended", "pending_admin_review"].includes(profile.status)) return false;
-  if (profile.role === "admin" || profile.isAdmin === true) return true;
-  return profile.adminApproved === true ||
-    ["active_member", "approved_pending_invite", "approved_pending_payment"].includes(profile.status);
+  // Do not couple marketplace access to DateVault's dating/member lifecycle.
+  // A rejected dating application or expired membership is not a Market ban.
+  return !(
+    profile.banned === true ||
+    profile.suspended === true ||
+    profile.accountSuspended === true ||
+    profile.marketBanned === true
+  );
 }
 
 function isAdmin(profile = {}) {
