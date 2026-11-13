@@ -15,7 +15,7 @@ test("creator identity keeps free manual evidence and charges 50 tokens only for
  const source=fs.readFileSync(path.join(root,"netlify/functions/market-creator-identity-verification.js"),"utf8");
  assert.match(source,/action==="didit-session"/);assert.match(source,/balance<50/);
  assert.match(source,/amountTokens:50/);assert.match(source,/market_creator_identity_didit/);
- assert.match(source,/Your 50 tokens have been refunded/);
+ assert.match(source,/Your 50 tokens have been refunded/);\n assert.match(source,/["didit_starting","didit_in_progress"].includes\(current.status\)/);\n assert.match(source,/market_session_persistence_failed/);
  const html=fs.readFileSync(path.join(root,"verify-creator-identity.html"),"utf8");
  assert.match(html,/Free manual ID \+ selfie review/);assert.match(html,/Didit verification · 50 tokens/);
 });
