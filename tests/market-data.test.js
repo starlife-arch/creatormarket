@@ -76,7 +76,7 @@ test("DateVault membership is never treated as Market age verification", () => {
 
 test("Market age verification only accepts an explicit Market approval", () => {
   const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-verification.js"), "utf8");
-  assert.equal(source.includes("context.profile.marketAgeVerified === true"), true);
+  assert.equal(source.includes("profile.marketAgeVerified === true"), true);
   assert.equal(source.includes("dateVaultApproved"), false);
 });
 
