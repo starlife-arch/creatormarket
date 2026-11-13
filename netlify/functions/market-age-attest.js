@@ -24,21 +24,11 @@ exports.handler = async event => {
     if (profile.marketAgeVerified === true && profile.verificationStatus !== "reverification_requested") {
       return json(200, { ok: true, ageVerified: true, source: profile.marketAgeVerificationSource || "datevault", reused: true });
     }
-    // DateVault only sets active_member after its own ID/selfie review. Reuse
-    // that approval permanently; do not force another upload every 90 days.
-    // An explicit reverification request remains the only reason to recheck.
-    if (profile.status !== "active_member" || profile.verificationStatus === "reverification_requested") {
-      return json(403, { error: "Complete DateVault identity verification before accessing 18+ Market content." });
-    }
-    await ref.update({
-      marketAgeVerified: true,
-      marketAgeVerificationStatus: "approved",
-      marketAgeVerificationMethod: "datevault_kyc",
-      marketAgeAttested: true,
-      marketAgeAttestedAt: admin.firestore.FieldValue.serverTimestamp(),
-      marketAgeVerifiedAt: admin.firestore.FieldValue.serverTimestamp()
-    });
-    return json(200, { ok: true, ageVerified: true, source: "datevault_kyc_plus_attestation" });
+    // DateVault membership status is not proof of age or identity approval.
+    // This endpoint must not turn active_member (or any subscription state)
+    // into marketplace age verification.
+    return json(403, { error: "Complete Creator Market's age-assurance process before accessing restricted 18+ content." });
+
   } catch (error) {
     console.error("Market DateVault age attestation failed:", { message: error.message, code: error.code });
     return json(500, { error: "Unable to confirm your DateVault verification. Please retry shortly." });
