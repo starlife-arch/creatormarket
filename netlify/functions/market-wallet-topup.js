@@ -15,7 +15,7 @@ exports.handler=async event=>{
   if(event.httpMethod==="POST"){
    const body=parseBody(event),tokens=Number(body.tokens),phone=String(body.phone||"").replace(/[^0-9]/g,"");
    if(!Number.isSafeInteger(tokens)||tokens<30||tokens>1000000)return json(400,{error:"Enter at least 30 whole tokens."});
-   if(!/^254[17]\\d{8}$/.test(phone)&&!/^0[17]\\d{8}$/.test(phone))return json(400,{error:"Enter a valid Kenyan M-Pesa number."});
+   if(!/^254[17]\d{8}$/.test(phone)&&!/^0[17]\d{8}$/.test(phone))return json(400,{error:"Enter a valid Kenyan M-Pesa number."});
    const amountUSD=PACKS[tokens]??Number((tokens/100).toFixed(2)),amountKes=Math.round(amountUSD*130);
    const data=await providerRequest(DATEVAULT_PRINTPAY,{method:"POST",headers:{"Content-Type":"application/json",Accept:"application/json"},body:JSON.stringify({phone_number:phone,amount:amountKes,uid:session.uid,purpose:"tokens",tokens,amountUSD})});
    if(!data.checkout_id)return json(502,{error:"Payment provider did not return a checkout reference."});
