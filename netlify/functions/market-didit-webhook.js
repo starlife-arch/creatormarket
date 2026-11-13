@@ -21,7 +21,7 @@ exports.handler=async event=>{
   if(!mapping.uid||body.vendor_data!==mapping.uid||mapping.workflowId!==workflowId)return json(400,{error:"Didit session ownership or workflow mapping mismatch."});
   const uid=mapping.uid,userRef=db.collection("users").doc(uid),requestRef=db.collection(purpose==="creator_identity"?"marketCreatorIdentityRequests":"marketAgeVerificationRequests").doc(uid);
   const receivedAt=Number(body.created_at||body.timestamp||0),status=String(body.status),approved=status==="Approved";
-  const requestStatus=approved?"approved":status==="Declined"?"rejected":status==="In Review"?"pending_review":["Abandoned","Expired","Kyc Expired"].includes(status)?"abandoned":"didit_"+statusLabel(status);
+  const requestStatus=approved?"approved":status==="Declined"?"rejected":status==="In Review"?(purpose==="creator_identity"?"didit_in_review":"pending_review"):["Abandoned","Expired","Kyc Expired"].includes(status)?"abandoned":"didit_"+statusLabel(status);
   await db.runTransaction(async tx=>{
    const eventSnap=await tx.get(eventRef);if(eventSnap.exists)return;
    const freshMapping=await tx.get(sessionRef),requestSnap=await tx.get(requestRef),userSnap=await tx.get(userRef);
