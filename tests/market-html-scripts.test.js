@@ -4,7 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 
-for (const filename of ["creator.html", "studio.html", "verify-age.html"]) {
+for (const filename of ["creator.html", "studio.html", "verify-age.html", "verify-creator-identity.html"]) {
   test(filename + " inline scripts parse", () => {
     const html = fs.readFileSync(path.join(__dirname, "..", filename), "utf8");
     const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/gi)];
