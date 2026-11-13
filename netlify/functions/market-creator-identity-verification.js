@@ -70,12 +70,12 @@ exports.handler=async event=>{
    const snap=await requestRef.get();if(!snap.exists)return json(200,{verified:false,status:"not_started",message:"Choose free manual ID and selfie review or automatic Didit verification for 50 tokens."});
    const d=snap.data()||{};
    return json(200,{verified:false,status:d.status||"awaiting_upload",provider:d.provider||"manual",verificationUrl:d.verificationUrl||null,
-    message:d.status==="pending_review"?"Your creator identity evidence is awaiting admin review.":d.status==="didit_starting"?"Your Didit creator verification is starting. Refresh shortly.":d.status==="didit_in_progress"?"Continue your secure Didit creator identity check.":d.status==="rejected"?(d.reviewNote||"Your creator identity check was not approved. You may submit new evidence or retry Didit."):"Upload your government identity document and a recent selfie for free manual creator identity review."});
+    message:d.status==="pending_review"?"Your creator identity evidence is awaiting admin review.":d.status==="didit_starting"?"Your Didit creator verification is starting. Refresh shortly.":d.status==="didit_in_progress"?"Continue your secure Didit creator identity check.":d.status==="didit_in_review"?"Didit has received your creator identity check. The result is pending.":d.status==="rejected"?(d.reviewNote||"Your creator identity check was not approved. You may submit new evidence or retry Didit."):"Upload your government identity document and a recent selfie for free manual creator identity review."});
   }
   const body=parseBody(event),action=cleanText(body.action,32)||"start";
   if(action==="didit-session")return await startDidit(context,db,requestRef);
   if(action==="start"){
-   const old=await requestRef.get();if(old.exists&&["awaiting_upload","pending_review"].includes(old.data().status))return json(200,{requestId:old.data().requestId,status:old.data().status,reused:true});
+   const old=await requestRef.get();if(old.exists&&["didit_starting","didit_in_progress","didit_in_review"].includes(old.data().status))return json(409,{error:"Your Didit creator identity verification is already in progress. Complete it before starting manual review."});if(old.exists&&["awaiting_upload","pending_review"].includes(old.data().status))return json(200,{requestId:old.data().requestId,status:old.data().status,reused:true});
    const requestId=crypto.randomUUID();await requestRef.set({uid:context.uid,requestId,status:"awaiting_upload",provider:"manual",evidence:{},createdAt:context.admin.firestore.FieldValue.serverTimestamp(),updatedAt:context.admin.firestore.FieldValue.serverTimestamp(),evidenceExpiresAt:context.admin.firestore.Timestamp.fromMillis(Date.now()+7*24*60*60*1000)});
    return json(200,{requestId,status:"awaiting_upload"});
   }
