@@ -17,7 +17,7 @@ for (const filename of ["creator.html", "studio.html", "verify-age.html", "verif
 }
 
 test("Creator Studio explains the buyer DOB check separately from creator ID/Didit options",()=>{
- const html=fs.readFileSync(path.join(root,"studio.html"),"utf8");
+ const html=fs.readFileSync(path.join(__dirname,"..","studio.html"),"utf8");
  assert.match(html,/free manual government ID \+ selfie review/i);
  assert.match(html,/Didit verification for 50 tokens/i);
  assert.match(html,/date-of-birth confirmation and separate creator identity verification/i);
