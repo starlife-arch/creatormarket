@@ -30,10 +30,10 @@ test("Didit webhook routes creator identity decisions separately from buyer age 
 test("Market wallet top-up uses Market session and shared DateVault PrintPay ledger",()=>{
  const source=fs.readFileSync(path.join(root,"netlify/functions/market-wallet-topup.js"),"utf8");
  assert.match(source,/getMarketUser\(event\)/);assert.match(source,/purpose:"tokens"/);
- assert.match(source,/payments/);assert.match(source,/walletFrozen/);assert.match(source,/CONTEXT!=="production"/);
+ assert.match(source,/payments/);assert.match(source,/walletFrozen/);assert.ok(source.includes('requestHost!=="market.elysiandate.site"'));
  const ui=fs.readFileSync(path.join(root,"assets/market-workspace.js"),"utf8");
  assert.match(ui,/\/api\/market-wallet-topup/);assert.match(ui,/Top up in Creator Market/);
- assert.doesNotMatch(ui,/openMarketWalletTopUp|market-wallet-sso-issue/);
+ assert.doesNotMatch(ui,/openMarketWalletTopUp|market-wallet-sso-issue/);assert.ok(ui.includes("Custom deposit"));assert.ok(ui.includes("market-token-options"));assert.ok(ui.includes('type="radio" name="tokens"'));assert.doesNotMatch(ui,/<select name="tokens"/);assert.ok(ui.includes("updateCustomEstimate"));
 });
 
 test("new age, creator identity and top-up server functions parse",()=>{
