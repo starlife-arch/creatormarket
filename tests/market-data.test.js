@@ -70,20 +70,20 @@ test("only explicit platform safety restrictions block Market access", () => {
 
 test("DateVault membership is never treated as Market age verification", () => {
   const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/_market-data.js"), "utf8");
-  assert.doesNotMatch(source, /profile\\.status === "active_member"/);
-  assert.match(source, /ageVerificationRequired: !isAdmin\\(profile\\)/);
+  assert.equal(source.includes('profile.status === "active_member"'), false);
+  assert.equal(source.includes("ageVerificationRequired: !isAdmin(profile)"), true);
 });
 
 test("Market age verification only accepts an explicit Market approval", () => {
   const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-verification.js"), "utf8");
-  assert.match(source, /context\\.profile\\.marketAgeVerified === true/);
-  assert.doesNotMatch(source, /dateVaultApproved/);
+  assert.equal(source.includes("context.profile.marketAgeVerified === true"), true);
+  assert.equal(source.includes("dateVaultApproved"), false);
 });
 
 test("DateVault age attestation cannot grant Market age approval from membership status", () => {
   const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-attest.js"), "utf8");
-  assert.match(source, /Complete Creator Market's age-assurance process/);
-  assert.doesNotMatch(source, /profile\\.status !== "active_member"/);
+  assert.equal(source.includes("Complete Creator Market's age-assurance process"), true);
+  assert.equal(source.includes('profile.status !== "active_member"'), false);
 });
 
 test("Market mobile drawer has explicit accessible open and close behavior", () => {
@@ -97,10 +97,3 @@ test("Market mobile drawer has explicit accessible open and close behavior", () 
 });
 
 
-test("approved DateVault members do not repeat Market age checks after 90 days", () => {
-  const source = fs.readFileSync(path.join(__dirname, "../netlify/functions/market-age-attest.js"), "utf8");
-  assert.match(source, /profile\.status !== "active_member"/);
-  assert.match(source, /profile\.verificationStatus === "reverification_requested"/);
-  assert.doesNotMatch(source, /90 \* 86400000/);
-  assert.match(source, /marketAgeVerified === true/);
-});
