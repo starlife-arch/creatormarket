@@ -13,6 +13,7 @@ async function startDidit(context,db,requestRef){
  const old=await requestRef.get(),oldData=old.exists?old.data()||{}:{};
  if(oldData.provider==="didit"&&oldData.status==="didit_in_progress"&&oldData.verificationUrl)
   return json(200,{requestId:oldData.requestId,status:oldData.status,verificationUrl:oldData.verificationUrl,reused:true,chargedTokens:0});
+ if(oldData.provider==="didit"&&oldData.status==="didit_starting")return json(409,{error:"Your Didit creator verification is already being started. Refresh this page in a moment."});
  if(["awaiting_upload","pending_review"].includes(oldData.status)&&Object.keys(oldData.evidence||{}).length)
   return json(409,{error:"A manual creator identity review is already in progress. Complete it before switching to Didit."});
  const requestId=crypto.randomUUID(),userRef=db.collection("users").doc(context.uid),chargeRef=db.collection("marketCreatorIdentityCharges").doc(requestId),walletTxRef=userRef.collection("walletTransactions").doc(),FieldValue=context.admin.firestore.FieldValue;
@@ -24,7 +25,7 @@ async function startDidit(context,db,requestRef){
    const profile=userSnap.data()||{};
    if(profile.banned||profile.suspended||profile.accountSuspended||profile.marketBanned||profile.walletFrozen)throw new Error("WALLET_HOLD");
    const current=requestSnap.exists?requestSnap.data()||{}:{};
-   if(current.provider==="didit"&&current.status==="didit_in_progress")throw new Error("DIDIT_IN_PROGRESS");
+   if(current.provider==="didit"&&["didit_starting","didit_in_progress"].includes(current.status))throw new Error("DIDIT_IN_PROGRESS");
    if(["awaiting_upload","pending_review"].includes(current.status)&&Object.keys(current.evidence||{}).length)throw new Error("MANUAL_REVIEW_ACTIVE");
    const balance=Math.floor(Number(profile.walletBalance||0));if(balance<50)throw new Error("INSUFFICIENT_TOKENS");
    tx.update(userRef,{walletBalance:balance-50});
@@ -54,8 +55,10 @@ async function startDidit(context,db,requestRef){
  let url;try{url=new URL(result.url);if(url.protocol!=="https:"||url.hostname!=="verify.didit.me"||!result.session_id)throw Error("invalid");}
  catch(e){await refund("invalid_provider_response");return json(502,{error:"Didit returned an invalid link. Your 50 tokens have been refunded."});}
  const sessionId=String(result.session_id);
- await db.collection("marketDiditSessions").doc(sessionId).set({uid:context.uid,requestId,workflowId,environment,purpose:"creator_identity",createdAt:FieldValue.serverTimestamp(),lastAppliedCreatedAt:0});
- await requestRef.set({uid:context.uid,requestId,provider:"didit",status:"didit_in_progress",diditSessionId:sessionId,verificationUrl:url.toString(),diditChargeId:requestId,diditChargeTokens:50,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+ try{
+  await db.collection("marketDiditSessions").doc(sessionId).set({uid:context.uid,requestId,workflowId,environment,purpose:"creator_identity",createdAt:FieldValue.serverTimestamp(),lastAppliedCreatedAt:0});
+  await requestRef.set({uid:context.uid,requestId,provider:"didit",status:"didit_in_progress",diditSessionId:sessionId,verificationUrl:url.toString(),diditChargeId:requestId,diditChargeTokens:50,updatedAt:FieldValue.serverTimestamp()},{merge:true});
+ }catch(error){await refund("market_session_persistence_failed");return json(502,{error:"Didit started but Market could not save the session. Your 50 tokens have been refunded; please try again."});}
  return json(200,{requestId,status:"didit_in_progress",verificationUrl:url.toString(),chargedTokens:50});
 }
 exports.handler=async event=>{
